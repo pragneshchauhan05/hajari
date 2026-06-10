@@ -1,0 +1,6 @@
+{
+  "name": "હાજરી",
+  "description": "કારીગરોની દૈનિક હાજરી, ઉપાડ અને પગારની ગણતરી માટેની આધુનિક અને સરળ ગુજરાતી સિસ્ટમ",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -1,0 +1,47 @@
+@import "tailwindcss";
+
+@variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --font-sans: "Noto Sans Gujarati", "Inter", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+}
+
+@media print {
+  /* Hide all interactive components, navigation rails, and control headers on screen */
+  header,
+  aside,
+  button,
+  select,
+  input,
+  #btn-add-new-worker,
+  #worker-search-input,
+  .print\:hidden {
+    display: none !important;
+  }
+
+  /* Make sure the main workspace fills the whole print canvas */
+  body, 
+  #root, 
+  main,
+  #main-content-stage {
+    background: white !important;
+    color: black !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+  }
+
+  /* Page break rules for clean PDF separation per worker */
+  .break-after-page {
+    page-break-after: always !important;
+    break-after: page !important;
+  }
+
+  .print\:border-none {
+    border: none !important;
+  }
+}
+
