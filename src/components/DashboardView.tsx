@@ -1,6 +1,7 @@
 import React from 'react';
 import { Worker, MonthlyWorkerAttendance } from '../types';
 import { calculateGlobalSummary, GUJARATI_MONTHS } from '../utils/attendanceUtils';
+import FirebaseSyncPanel from './FirebaseSyncPanel';
 
 interface DashboardViewProps {
   workers: Worker[];
@@ -8,6 +9,10 @@ interface DashboardViewProps {
   selectedMonth: number;
   selectedYear: number;
   onNavigateToTab: (tab: 'dashboard' | 'workers' | 'attendance' | 'reports') => void;
+  onRestoreSuccess: (
+    workers: Worker[],
+    attendanceDB: Record<string, MonthlyWorkerAttendance>
+  ) => void;
 }
 
 export default function DashboardView({
@@ -16,6 +21,7 @@ export default function DashboardView({
   selectedMonth,
   selectedYear,
   onNavigateToTab,
+  onRestoreSuccess,
 }: DashboardViewProps) {
   // Calculate stats for current selection
   const stats = calculateGlobalSummary(workers, attendanceDB, selectedYear, selectedMonth);
@@ -99,7 +105,7 @@ export default function DashboardView({
             <i className="fa-solid fa-wallet text-xl"></i>
           </div>
           <div>
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide dark:text-slate-400">કુલ કમાણી (રૂ.)</p>
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide dark:text-slate-400">કુલ બનેલ કમાણી (જમા)</p>
             <h4 className="text-xl sm:text-2xl font-black text-teal-700 font-sans mt-0.5 dark:text-teal-400">{formatCurrency(stats.totalEarnings)}</h4>
           </div>
         </div>
@@ -110,7 +116,7 @@ export default function DashboardView({
             <i className="fa-solid fa-hand-holding-dollar text-xl"></i>
           </div>
           <div>
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide dark:text-slate-400">કુલ ઉપાડ (રૂ.)</p>
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide dark:text-slate-400">કુલ ચૂકવેલ રકમ (ઉપાડ)</p>
             <h4 className="text-xl sm:text-2xl font-black text-amber-700 font-sans mt-0.5 dark:text-amber-400">{formatCurrency(stats.totalUpad)}</h4>
           </div>
         </div>
@@ -121,7 +127,7 @@ export default function DashboardView({
             <i className="fa-solid fa-scale-balanced text-xl"></i>
           </div>
           <div>
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide dark:text-slate-400">કુલ બાકી રકમ</p>
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide dark:text-slate-400">કુલ ચૂકવવાની બાકી રકમ</p>
             <h4 className="text-xl sm:text-2xl font-black text-purple-700 font-sans mt-0.5 dark:text-purple-400">{formatCurrency(stats.totalBalance)}</h4>
           </div>
         </div>
@@ -169,6 +175,13 @@ export default function DashboardView({
           </button>
         </div>
       </div>
+
+      {/* Google Cloud Database Sync Panel */}
+      <FirebaseSyncPanel
+        workers={workers}
+        attendanceDB={attendanceDB}
+        onRestoreSuccess={onRestoreSuccess}
+      />
     </div>
   );
 }

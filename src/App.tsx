@@ -191,6 +191,14 @@ export default function App() {
     }
   };
 
+  const handleRestoreSuccess = (
+    restoredWorkers: Worker[],
+    restoredAttendanceDB: Record<string, MonthlyWorkerAttendance>
+  ) => {
+    setWorkers(restoredWorkers);
+    setAttendanceDB(restoredAttendanceDB);
+  };
+
   return (
     <div className="min-h-screen flex flex-col bg-gray-50 pb-12 transition-colors duration-200 dark:bg-slate-950">
       {/* Premium Top Navigation header */}
@@ -218,6 +226,7 @@ export default function App() {
                 attendanceDB={attendanceDB}
                 selectedMonth={selectedMonth}
                 selectedYear={selectedYear}
+                onRestoreSuccess={handleRestoreSuccess}
                 onNavigateToTab={(tab) => {
                   setActiveTab(tab);
                   if (tab === 'workers') {

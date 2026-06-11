@@ -75,23 +75,23 @@ export default function ReportsView({
 
         {/* Total Earnings */}
         <div className="rounded-xl border border-cyan-100 bg-cyan-50/20 p-4 shadow-sm text-center dark:border-cyan-950/40 dark:bg-cyan-950/20 transition-colors">
-          <p className="text-[10px] font-bold text-cyan-600 uppercase tracking-widest dark:text-cyan-400">કુલ કમાણી</p>
+          <p className="text-[10px] font-bold text-cyan-600 uppercase tracking-widest dark:text-cyan-400">કુલ બનેલ કમાણી (જમા)</p>
           <h4 className="text-xl font-bold text-cyan-700 font-sans mt-2 dark:text-cyan-400">{formatCurrency(stats.totalEarnings)}</h4>
           <span className="text-[10px] text-cyan-500 mt-1 block dark:text-cyan-400">સિસ્ટમ દ્વારા જનરેટ</span>
         </div>
 
         {/* Total Upad */}
         <div className="rounded-xl border border-amber-100 bg-amber-50/20 p-4 shadow-sm text-center dark:border-amber-950/40 dark:bg-amber-950/20 transition-colors">
-          <p className="text-[10px] font-bold text-amber-600 uppercase tracking-widest dark:text-amber-400">કુલ ઉપાડ</p>
+          <p className="text-[10px] font-bold text-amber-600 uppercase tracking-widest dark:text-amber-400">કુલ ચૂકવેલ રકમ (ઉપાડ)</p>
           <h4 className="text-xl font-bold text-amber-700 font-sans mt-2 dark:text-amber-400">{formatCurrency(stats.totalUpad)}</h4>
-          <span className="text-[10px] text-amber-500 mt-1 block dark:text-amber-400">તમામ એડવાન્સ ચુકવણી</span>
+          <span className="text-[10px] text-amber-500 mt-1 block dark:text-amber-400">મેં ચૂકવેલ કુલ રકમ</span>
         </div>
 
         {/* Total Remaining / Balance */}
         <div className="rounded-xl border border-purple-100 bg-purple-50/20 p-4 shadow-sm text-center dark:border-purple-950/40 dark:bg-purple-950/20 transition-colors">
-          <p className="text-[10px] font-bold text-purple-600 uppercase tracking-widest dark:text-purple-400">કુલ બાકી</p>
+          <p className="text-[10px] font-bold text-purple-600 uppercase tracking-widest dark:text-purple-400">કુલ ચૂકવવાની બાકી રકમ</p>
           <h4 className="text-xl font-bold text-purple-700 font-sans mt-2 dark:text-purple-400">{formatCurrency(stats.totalBalance)}</h4>
-          <span className="text-[10px] text-purple-500 mt-1 block dark:text-purple-400">બાકી લેણાં પગાર</span>
+          <span className="text-[10px] text-purple-500 mt-1 block dark:text-purple-400">હવે ચૂકવવાના બાકી રૂપિયા</span>
         </div>
       </div>
 
@@ -133,13 +133,13 @@ export default function ReportsView({
                     ગેરહાજર દિવસો
                   </th>
                   <th scope="col" className="px-4 py-3.5 text-right font-bold">
-                    કુલ કમાણી (₹)
+                    કુલ કમાણી (જમા) (₹)
                   </th>
                   <th scope="col" className="px-4 py-3.5 text-right font-bold">
-                    કુલ ઉપાડ (₹)
+                    ચૂકવેલ રકમ / ઉપાડ (₹)
                   </th>
                   <th scope="col" className="px-4 py-3.5 text-right font-bold">
-                    બાકી પગાર (₹)
+                    બાકી ચૂકવવાના (₹)
                   </th>
                   <th scope="col" className="px-4 py-3.5 text-center font-bold">
                     એક્શન
@@ -246,15 +246,15 @@ export default function ReportsView({
             <span className="text-lg font-black text-rose-600">{stats.totalAbsent}</span>
           </div>
           <div className="border-t border-gray-100 pt-2.5">
-            <span className="text-[10px] text-gray-500 font-bold block">કુલ જનરેટેડ પગાર કમાણી</span>
+            <span className="text-[10px] text-gray-500 font-bold block">કુલ જનરેટેડ કમાણી (જમા રકમ)</span>
             <span className="text-base font-black text-teal-700">{formatCurrency(stats.totalEarnings)}</span>
           </div>
           <div className="border-t border-gray-100 pt-2.5">
-            <span className="text-[10px] text-gray-500 font-bold block">કુલ આપેલ એડવાન્સ ઉપાડ</span>
+            <span className="text-[10px] text-gray-500 font-bold block">કુલ ચૂકવેલ રકમ (ઉપાડ)</span>
             <span className="text-base font-black text-amber-700">{formatCurrency(stats.totalUpad)}</span>
           </div>
           <div className="border-t border-gray-100 pt-2.5">
-            <span className="text-[10px] text-gray-500 font-bold block">કુલ ચૂકવવાપાત્ર બાકી રકમ</span>
+            <span className="text-[10px] text-gray-500 font-bold block">કુલ ચૂકવવાની બાકી રકમ</span>
             <span className="text-base font-black text-purple-700">{formatCurrency(stats.totalBalance)}</span>
           </div>
         </div>
@@ -271,9 +271,9 @@ export default function ReportsView({
                 <th className="border border-gray-200 p-2 text-center">રોજનો રોજ (₹)</th>
                 <th className="border border-gray-200 p-2 text-center">હાજર</th>
                 <th className="border border-gray-200 p-2 text-center">ગેરહાજર</th>
-                <th className="border border-gray-200 p-2 text-right">કુલ કમાણી (₹)</th>
-                <th className="border border-gray-200 p-2 text-right">કુલ ઉપાડ (₹)</th>
-                <th className="border border-gray-200 p-2 text-right">ચુકવવાપાત્ર બાકી (₹)</th>
+                <th className="border border-gray-200 p-2 text-right">કુલ કમાણી (જમા) (₹)</th>
+                <th className="border border-gray-200 p-2 text-right">ચૂકવેલ રકમ / ઉપાડ (₹)</th>
+                <th className="border border-gray-200 p-2 text-right">ચૂકવવાની બાકી (₹)</th>
               </tr>
             </thead>
             <tbody>
@@ -381,11 +381,11 @@ export default function ReportsView({
                     <span className="text-xs font-bold text-rose-700">{t.absentDays}</span>
                   </div>
                   <div>
-                    <span className="text-gray-500 font-semibold block">કુલ પગાર કમાણી</span>
+                    <span className="text-gray-500 font-semibold block">કુલ કમાણી (જમા)</span>
                     <span className="text-xs font-bold text-teal-800">₹{t.totalEarnings}</span>
                   </div>
                   <div>
-                    <span className="text-gray-500 font-semibold block">કુલ ઉપાડ</span>
+                    <span className="text-gray-500 font-semibold block">કુલ ચૂકવેલ રકમ</span>
                     <span className="text-xs font-bold text-amber-700">₹{t.totalUpad}</span>
                   </div>
                   <div>

@@ -1,0 +1,107 @@
+{
+  "entities": {
+    "Worker": {
+      "title": "Worker",
+      "description": "Information about a daily wage worker",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the worker"
+        },
+        "name": {
+          "type": "string",
+          "description": "Full name of the worker"
+        },
+        "village": {
+          "type": "string",
+          "description": "Village or location of the worker"
+        },
+        "dailyWage": {
+          "type": "number",
+          "description": "Daily wage rate for the worker"
+        },
+        "userId": {
+          "type": "string",
+          "description": "Firebase Auth UID of the owner"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Creation timestamp"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Last update timestamp"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "village",
+        "dailyWage",
+        "userId"
+      ]
+    },
+    "Attendance": {
+      "title": "Attendance",
+      "description": "Monthly attendance and upad (advance payment) records for a worker",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier of format workerId_year_month"
+        },
+        "workerId": {
+          "type": "string",
+          "description": "Reference to the worker"
+        },
+        "year": {
+          "type": "number",
+          "description": "Calendar year"
+        },
+        "month": {
+          "type": "number",
+          "description": "Calendar month (1-12)"
+        },
+        "records": {
+          "type": "object",
+          "description": "Map of day-of-month to record { status, upad, note }"
+        },
+        "userId": {
+          "type": "string",
+          "description": "Firebase Auth UID of the owner"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Creation timestamp"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Last update timestamp"
+        }
+      },
+      "required": [
+        "id",
+        "workerId",
+        "year",
+        "month",
+        "records",
+        "userId"
+      ]
+    }
+  },
+  "firestore": {
+    "/workers/{workerId}": {
+      "schema": "Worker",
+      "description": "Collection of daily wage workers"
+    },
+    "/attendance/{attendanceId}": {
+      "schema": "Attendance",
+      "description": "Collection of monthly attendance and upad records"
+    }
+  }
+}

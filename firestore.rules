@@ -1,0 +1,69 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 1. Global Safety Net: Default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Global helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && userId == request.auth.uid;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    // 2. Workers Rules Block
+    match /workers/{workerId} {
+      allow read: if isSignedIn() && resource.data.userId == request.auth.uid;
+      
+      allow create: if isSignedIn() 
+        && isValidId(workerId) 
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.name is string 
+        && request.resource.data.name.size() <= 150
+        && request.resource.data.village is string 
+        && request.resource.data.village.size() <= 200
+        && request.resource.data.dailyWage is number
+        && request.resource.data.dailyWage >= 0;
+
+      allow update: if isSignedIn() 
+        && resource.data.userId == request.auth.uid
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.name is string 
+        && request.resource.data.name.size() <= 150
+        && request.resource.data.village is string 
+        && request.resource.data.village.size() <= 200
+        && request.resource.data.dailyWage is number
+        && request.resource.data.dailyWage >= 0;
+
+      allow delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+    }
+
+    // 3. Attendance Rules Block
+    match /attendance/{attendanceId} {
+      allow read: if isSignedIn() && resource.data.userId == request.auth.uid;
+      
+      allow create: if isSignedIn() 
+        && isValidId(attendanceId) 
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.workerId is string
+        && request.resource.data.year is number
+        && request.resource.data.month is number
+        && request.resource.data.records is map;
+
+      allow update: if isSignedIn() 
+        && resource.data.userId == request.auth.uid
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.records is map;
+
+      allow delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+    }
+  }
+}

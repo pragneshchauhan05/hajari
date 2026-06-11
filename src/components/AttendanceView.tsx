@@ -139,7 +139,7 @@ export default function AttendanceView({
                       હાજરી
                     </th>
                     <th scope="col" className="px-4 py-3.5 text-left w-48">
-                      ઉપાડ (₹ - ઍડવાન્સ પગાર)
+                      ચૂકવેલ રકમ / ઉપાડ (₹)
                     </th>
                     <th scope="col" className="px-4 py-3.5 text-left">
                       કોમેન્ટ અથવા અન્ય નોંધ
@@ -270,7 +270,7 @@ export default function AttendanceView({
               {/* Total earnings */}
               <div className="rounded-xl border border-teal-100 bg-white p-3 shadow-sm dark:border-slate-700 dark:bg-slate-800">
                 <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block label-title dark:text-slate-400">
-                  💵 કુલ કમાણી (હાજર × પગાર)
+                  💵 કુલ બનેલ કમાણી (જમા)
                 </span>
                 <span className="text-xl sm:text-2xl font-black text-teal-700 font-sans block mt-1 dark:text-teal-400">
                   ₹{totals.totalEarnings.toLocaleString('gu-IN')}
@@ -280,7 +280,7 @@ export default function AttendanceView({
               {/* Total advanced drawn */}
               <div className="rounded-xl border border-amber-100 bg-white p-3 shadow-sm dark:border-slate-700 dark:bg-slate-800">
                 <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block label-title dark:text-slate-400">
-                  💰 કુલ ઉપાડ
+                  💰 કુલ ચૂકવેલ રકમ (ઉપાડ)
                 </span>
                 <span className="text-xl sm:text-2xl font-black text-amber-700 font-sans block mt-1 dark:text-amber-400">
                   ₹{totals.totalUpad.toLocaleString('gu-IN')}
@@ -290,7 +290,7 @@ export default function AttendanceView({
               {/* Balance remaining dues */}
               <div className="rounded-xl border border-purple-100 bg-white p-3 shadow-sm col-span-2 md:col-span-1 dark:border-slate-700 dark:bg-slate-800">
                 <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block label-title dark:text-slate-400">
-                  📉 બાકી રકમ (ચૂકવવાપાત્ર)
+                  📉 કુલ ચૂકવવાની બાકી રકમ
                 </span>
                 <span
                   className={`text-xl sm:text-2xl font-black font-sans block mt-1 ${
