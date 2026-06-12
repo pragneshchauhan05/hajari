@@ -120,6 +120,7 @@ export const backupToFirestore = async (
         name: worker.name,
         village: worker.village,
         dailyWage: worker.dailyWage,
+        mobile: worker.mobile || '',
         userId: userId,
         updatedAt: new Date().toISOString()
       }, { merge: true });
@@ -171,6 +172,7 @@ export const restoreFromFirestore = async (
         name: d.name,
         village: d.village,
         dailyWage: d.dailyWage,
+        mobile: d.mobile || '',
       });
     });
 

@@ -3,8 +3,8 @@ import React, { useState, useEffect } from 'react';
 interface WorkerModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (data: { name: string; village: string; dailyWage: number }) => void;
-  initialData?: { name: string; village: string; dailyWage: number } | null;
+  onSave: (data: { name: string; village: string; dailyWage: number; mobile?: string }) => void;
+  initialData?: { name: string; village: string; dailyWage: number; mobile?: string } | null;
 }
 
 export default function WorkerModal({
@@ -15,6 +15,7 @@ export default function WorkerModal({
 }: WorkerModalProps) {
   const [name, setName] = useState('');
   const [village, setVillage] = useState('');
+  const [mobile, setMobile] = useState('');
   const [dailyWage, setDailyWage] = useState<number | ''>('');
   const [error, setError] = useState('');
 
@@ -23,10 +24,12 @@ export default function WorkerModal({
     if (initialData) {
       setName(initialData.name);
       setVillage(initialData.village);
+      setMobile(initialData.mobile || '');
       setDailyWage(initialData.dailyWage);
     } else {
       setName('');
       setVillage('');
+      setMobile('');
       setDailyWage('');
     }
     setError('');
@@ -44,7 +47,15 @@ export default function WorkerModal({
       return;
     }
     if (!village.trim()) {
-      setError('કૃપા કરીને કારીગરના ગામનું નામ લખો!');
+      setError('કૃપા કરીને કારીગરની સાઇટનું નામ લખો!');
+      return;
+    }
+    if (!mobile.trim()) {
+      setError('કૃપા કરીને કારીગરનો મોબાઇલ નંબર લખો!');
+      return;
+    }
+    if (mobile.trim().length !== 10) {
+      setError('મોબાઇલ નંબર ૧૦ આંકડાનો હોવો જોઈએ!');
       return;
     }
     if (!dailyWage || Number(dailyWage) <= 0) {
@@ -55,6 +66,7 @@ export default function WorkerModal({
     onSave({
       name: name.trim(),
       village: village.trim(),
+      mobile: mobile.trim(),
       dailyWage: Number(dailyWage),
     });
     onClose();
@@ -102,22 +114,41 @@ export default function WorkerModal({
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="દા.ત. રમેશભાઈ પટેલ"
-              className="w-full rounded-xl border border-gray-200 bg-gray-50/50 px-4 py-3 text-sm text-gray-900 outline-none transition-all placeholder:text-gray-400 focus:border-teal-500 focus:bg-white focus:ring-2 focus:ring-teal-100 dark:border-slate-700 dark:bg-slate-800/60 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:border-teal-500 dark:focus:ring-teal-950/40 dark:focus:bg-slate-900"
+              className="w-full rounded-xl border border-gray-200 bg-gray-50/50 px-4 py-3 text-sm text-gray-900 outline-none transition-all placeholder:text-gray-400 focus:border-teal-500 focus:bg-white focus:ring-2 focus:ring-teal-100 dark:border-slate-700 dark:bg-slate-800/60 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:border-teal-500 dark:focus:ring-teal-950/40 dark:focus:bg-slate-905"
+            />
+          </div>
+
+          {/* Mobile Field */}
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-1.5 dark:text-slate-300" htmlFor="worker-mobile">
+              📞 મોબાઇલ નંબર (Mobile Number)
+            </label>
+            <input
+              id="worker-mobile"
+              type="tel"
+              value={mobile}
+              onChange={(e) => {
+                const val = e.target.value.replace(/[^0-9]/g, '');
+                setMobile(val);
+              }}
+              placeholder="દા.ત. 9876543210"
+              maxLength={10}
+              className="w-full rounded-xl border border-gray-200 bg-gray-50/50 px-4 py-3 text-sm text-gray-900 outline-none transition-all placeholder:text-gray-400 focus:border-teal-500 focus:bg-white focus:ring-2 focus:ring-teal-100 dark:border-slate-700 dark:bg-slate-800/60 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:border-teal-500 dark:focus:ring-teal-950/40 dark:focus:bg-slate-905"
             />
           </div>
 
           {/* Village Field */}
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-1.5 dark:text-slate-300" htmlFor="worker-village">
-              📍 કારીગરનું ગામ
+              🏗️ સાઇટનું નામ (Site Name)
             </label>
             <input
               id="worker-village"
               type="text"
               value={village}
               onChange={(e) => setVillage(e.target.value)}
-              placeholder="દા.ત. વરાછા, સુરત"
-              className="w-full rounded-xl border border-gray-200 bg-gray-50/50 px-4 py-3 text-sm text-gray-900 outline-none transition-all placeholder:text-gray-400 focus:border-teal-500 focus:bg-white focus:ring-2 focus:ring-teal-100 dark:border-slate-700 dark:bg-slate-800/60 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:border-teal-500 dark:focus:ring-teal-950/40 dark:focus:bg-slate-900"
+              placeholder="દા.ત. વરાછા પ્રોજેક્ટ, સુરત"
+              className="w-full rounded-xl border border-gray-200 bg-gray-50/50 px-4 py-3 text-sm text-gray-900 outline-none transition-all placeholder:text-gray-400 focus:border-teal-500 focus:bg-white focus:ring-2 focus:ring-teal-100 dark:border-slate-700 dark:bg-slate-800/60 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:border-teal-500 dark:focus:ring-teal-950/40 dark:focus:bg-slate-905"
             />
           </div>
 

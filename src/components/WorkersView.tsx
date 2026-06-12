@@ -23,7 +23,8 @@ export default function WorkersView({
     const query = searchQuery.toLowerCase();
     return (
       w.name.toLowerCase().includes(query) ||
-      w.village.toLowerCase().includes(query)
+      w.village.toLowerCase().includes(query) ||
+      (w.mobile && w.mobile.toLowerCase().includes(query))
     );
   });
 
@@ -40,7 +41,7 @@ export default function WorkersView({
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="કારીગર અથવા ગામનું નામ શોધો..."
+            placeholder="કારીગર, સાઇટ અથવા મોબાઇલ નંબર શોધો..."
             className="w-full rounded-xl border border-gray-200 bg-gray-50/50 pl-10 pr-4 py-2.5 text-sm outline-none transition-all focus:border-teal-500 focus:bg-white focus:ring-2 focus:ring-teal-100 dark:border-slate-700 dark:bg-slate-800/60 dark:text-slate-100 dark:focus:border-teal-500 dark:focus:bg-slate-900"
           />
         </div>
@@ -84,11 +85,20 @@ export default function WorkersView({
                   <h4 className="text-lg font-bold text-gray-900 font-sans group-hover:text-teal-605 transition-colors dark:text-slate-150 dark:group-hover:text-teal-400">
                     👤 {worker.name}
                   </h4>
-                  <p className="text-xs text-gray-500 mt-1 flex items-center gap-1">
-                    <span className="inline-block px-2 py-0.5 rounded-md bg-gray-100 text-gray-600 font-medium dark:bg-slate-800 dark:text-slate-300">
-                      📍 {worker.village}
-                    </span>
-                  </p>
+                  <div className="flex flex-col gap-1.5 mt-2">
+                    <p className="text-xs text-gray-500 flex items-center gap-1">
+                      <span className="inline-block px-2 py-0.5 rounded-md bg-gray-150 text-gray-700 font-bold dark:bg-slate-800 dark:text-slate-300">
+                        🏗️ સાઇટ: {worker.village}
+                      </span>
+                    </p>
+                    {worker.mobile && (
+                      <p className="text-xs text-gray-505 flex items-center gap-1">
+                        <span className="inline-block px-2 py-0.5 rounded-md bg-teal-50 text-teal-850 font-bold dark:bg-teal-950/40 dark:text-teal-400">
+                          📞 મો: {worker.mobile}
+                        </span>
+                      </p>
+                    )}
+                  </div>
                 </div>
                 
                 {/* Daily Wage Display */}

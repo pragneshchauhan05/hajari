@@ -108,22 +108,23 @@ export default function App() {
   }, [isDarkMode]);
 
   // Manage Workers Actions
-  const handleAddNewWorker = (data: { name: string; village: string; dailyWage: number }) => {
+  const handleAddNewWorker = (data: { name: string; village: string; dailyWage: number; mobile?: string }) => {
     const newWorker: Worker = {
       id: `worker-${Date.now()}`,
       name: data.name,
       village: data.village,
       dailyWage: data.dailyWage,
+      mobile: data.mobile || '',
     };
     setWorkers((prev) => [...prev, newWorker]);
   };
 
-  const handleEditWorker = (data: { name: string; village: string; dailyWage: number }) => {
+  const handleEditWorker = (data: { name: string; village: string; dailyWage: number; mobile?: string }) => {
     if (!editingWorker) return;
     setWorkers((prev) =>
       prev.map((w) =>
         w.id === editingWorker.id
-          ? { ...w, name: data.name, village: data.village, dailyWage: data.dailyWage }
+          ? { ...w, name: data.name, village: data.village, dailyWage: data.dailyWage, mobile: data.mobile || '' }
           : w
       )
     );
@@ -183,7 +184,7 @@ export default function App() {
     setActiveTab('attendance');
   };
 
-  const handleSaveModal = (data: { name: string; village: string; dailyWage: number }) => {
+  const handleSaveModal = (data: { name: string; village: string; dailyWage: number; mobile?: string }) => {
     if (editingWorker) {
       handleEditWorker(data);
     } else {

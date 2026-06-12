@@ -31,7 +31,9 @@ service cloud.firestore {
         && request.resource.data.village is string 
         && request.resource.data.village.size() <= 200
         && request.resource.data.dailyWage is number
-        && request.resource.data.dailyWage >= 0;
+        && request.resource.data.dailyWage >= 0
+        && request.resource.data.mobile is string
+        && request.resource.data.mobile.size() <= 20;
 
       allow update: if isSignedIn() 
         && resource.data.userId == request.auth.uid
@@ -41,7 +43,9 @@ service cloud.firestore {
         && request.resource.data.village is string 
         && request.resource.data.village.size() <= 200
         && request.resource.data.dailyWage is number
-        && request.resource.data.dailyWage >= 0;
+        && request.resource.data.dailyWage >= 0
+        && request.resource.data.mobile is string
+        && request.resource.data.mobile.size() <= 20;
 
       allow delete: if isSignedIn() && resource.data.userId == request.auth.uid;
     }

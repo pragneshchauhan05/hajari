@@ -17,6 +17,8 @@ export default function ReportsView({
   selectedYear,
   onViewWorkerAttendance,
 }: ReportsViewProps) {
+  const [printTarget, setPrintTarget] = React.useState<string | 'all'>('all');
+
   const stats = calculateGlobalSummary(workers, attendanceDB, selectedYear, selectedMonth);
   const activeMonthLabel = GUJARATI_MONTHS.find((m) => m.value === selectedMonth)?.label || '';
   const daysCount = getDaysInMonth(selectedYear, selectedMonth);
@@ -24,7 +26,23 @@ export default function ReportsView({
   // Format currency
   const formatCurrency = (val: number) => {
     return '₹' + Math.round(val).toLocaleString('gu-IN');
-  };  return (
+  };
+
+  const handlePrintSingleWorker = (workerId: string) => {
+    setPrintTarget(workerId);
+    setTimeout(() => {
+      window.print();
+    }, 150);
+  };
+
+  const handlePrintAll = () => {
+    setPrintTarget('all');
+    setTimeout(() => {
+      window.print();
+    }, 150);
+  };
+
+  return (
     <div className="space-y-6">
       {/* Overview Block with Screen Actions */}
       <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 print:hidden dark:border-slate-800 dark:bg-slate-900 transition-colors">
@@ -41,11 +59,11 @@ export default function ReportsView({
         {/* PDF/Print Trigger Buttons */}
         <div className="flex items-center gap-3">
           <button
-            onClick={() => window.print()}
-            className="flex items-center justify-center gap-1.5 rounded-xl bg-teal-500 text-white hover:bg-teal-600 px-5 py-2.5 text-xs font-bold shadow-md shadow-teal-100 transition-colors select-none dark:shadow-none"
+            onClick={handlePrintAll}
+            className="flex items-center justify-center gap-1.5 rounded-xl bg-teal-500 text-white hover:bg-teal-600 px-5 py-2.5 text-xs font-bold shadow-md shadow-teal-100 transition-colors select-none dark:shadow-none cursor-pointer"
           >
             <i className="fa-solid fa-file-pdf"></i>
-            પીડીએફ ડાઉનલોડ / પ્રિન્ટ (Download PDF)
+            બધાનો આખો રિપોર્ટ PDF (Download All PDF)
           </button>
         </div>
       </div>
@@ -157,7 +175,7 @@ export default function ReportsView({
                       {/* Name & Village */}
                       <td className="px-4 py-3">
                         <div className="font-semibold text-gray-900 dark:text-slate-100">{worker.name}</div>
-                        <div className="text-xs text-gray-400 dark:text-slate-500">{worker.village}</div>
+                        <div className="text-xs text-gray-400 dark:text-slate-500">🏗️ સાઇટ: {worker.village}{worker.mobile ? ` | 📞 મો: ${worker.mobile}` : ''}</div>
                       </td>
 
                       {/* wage rate */}
@@ -196,13 +214,23 @@ export default function ReportsView({
 
                       {/* details action */}
                       <td className="px-4 py-3 text-center">
-                        <button
-                          id={`btn-report-view-${worker.id}`}
-                          onClick={() => onViewWorkerAttendance(worker.id)}
-                          className="inline-flex items-center justify-center rounded-lg bg-teal-50 hover:bg-teal-100 px-2.5 py-1.5 text-xs font-bold text-teal-700 transition-colors dark:bg-teal-950/40 dark:text-teal-400 dark:hover:bg-teal-900/40"
-                        >
-                          વિગતવાર પત્રક
-                        </button>
+                        <div className="flex flex-col sm:flex-row gap-2 justify-center items-center">
+                          <button
+                            id={`btn-report-view-${worker.id}`}
+                            onClick={() => onViewWorkerAttendance(worker.id)}
+                            className="inline-flex items-center justify-center rounded-lg bg-teal-50 hover:bg-teal-100 px-2.5 py-1.5 text-xs font-bold text-teal-700 transition-colors dark:bg-teal-950/40 dark:text-teal-400 dark:hover:bg-teal-905"
+                          >
+                            વિગતવાર પત્રક
+                          </button>
+                          <button
+                            id={`btn-print-single-${worker.id}`}
+                            onClick={() => handlePrintSingleWorker(worker.id)}
+                            className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 px-2.5 py-1.5 text-xs font-bold text-emerald-700 transition-colors dark:bg-emerald-950/40 dark:text-emerald-400 dark:hover:bg-emerald-905 cursor-pointer"
+                          >
+                            <i className="fa-solid fa-file-pdf"></i>
+                            પીડીએફ (PDF)
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );
@@ -219,183 +247,220 @@ export default function ReportsView({
       <div className="hidden print:block bg-white text-black p-4 space-y-8 font-sans">
         
         {/* Cover sheet header banner */}
-        <div className="border-b-4 border-teal-600 pb-5 flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-black text-teal-850">"હાજરી" - માસિક સંપૂર્ણ હિસાબી અહેવાલ</h1>
-            <p className="text-xs text-gray-500 mt-1">
-              મહિનો: <span className="font-bold text-teal-700">{activeMonthLabel} - {selectedYear}</span> | રિપોર્ટ કાઢ્યા તારીખ: {new Date().toLocaleDateString('gu-IN')}
-            </p>
+        {printTarget === 'all' && (
+          <div className="border-b-4 border-teal-600 pb-5 flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl font-black text-teal-850">"હાજરી" - માસિક સંપૂર્ણ હિસાબી અહેવાલ</h1>
+              <p className="text-xs text-gray-500 mt-1">
+                મહિનો: <span className="font-bold text-teal-700">{activeMonthLabel} - {selectedYear}</span> | રિપોર્ટ કાઢ્યા તારીખ: {new Date().toLocaleDateString('gu-IN')}
+              </p>
+            </div>
+            <div className="text-right border border-teal-200 bg-teal-55 px-3 py-1 rounded-lg">
+              <span className="text-xs font-bold text-teal-800">અધિકૃત હિસાબપત્રક</span>
+            </div>
           </div>
-          <div className="text-right border border-teal-200 bg-teal-55 px-3 py-1 rounded-lg">
-            <span className="text-xs font-bold text-teal-800">અધિકૃત હિસાબપત્રક</span>
-          </div>
-        </div>
+        )}
 
         {/* Global Statistics Cards for Print */}
-        <div className="grid grid-cols-3 gap-4 border border-gray-200 rounded-xl p-4 bg-gray-50/50">
-          <div>
-            <span className="text-[10px] text-gray-500 font-bold block">કુલ કારીગરો</span>
-            <span className="text-lg font-black text-slate-800">{stats.totalWorkers}</span>
+        {printTarget === 'all' && (
+          <div className="grid grid-cols-3 gap-4 border border-gray-200 rounded-xl p-4 bg-gray-50/50">
+            <div>
+              <span className="text-[10px] text-gray-500 font-bold block">કુલ કારીગરો</span>
+              <span className="text-lg font-black text-slate-800">{stats.totalWorkers}</span>
+            </div>
+            <div>
+              <span className="text-[10px] text-gray-500 font-bold block">કુલ હાજર દિવસો</span>
+              <span className="text-lg font-black text-emerald-600">{stats.totalPresent}</span>
+            </div>
+            <div>
+              <span className="text-[10px] text-gray-500 font-bold block">કુલ ગેરહાજર દિવસો</span>
+              <span className="text-lg font-black text-rose-600">{stats.totalAbsent}</span>
+            </div>
+            <div className="border-t border-gray-100 pt-2.5">
+              <span className="text-[10px] text-gray-500 font-bold block">કુલ બનેલ કમાણી (જમા રકમ)</span>
+              <span className="text-base font-black text-teal-700">{formatCurrency(stats.totalEarnings)}</span>
+            </div>
+            <div className="border-t border-gray-100 pt-2.5">
+              <span className="text-[10px] text-gray-500 font-bold block">કુલ ચૂકવેલ રકમ (ઉપાડ)</span>
+              <span className="text-base font-black text-amber-700">{formatCurrency(stats.totalUpad)}</span>
+            </div>
+            <div className="border-t border-gray-100 pt-2.5">
+              <span className="text-[10px] text-gray-500 font-bold block">કુલ ચૂકવવાની બાકી રકમ</span>
+              <span className="text-base font-black text-purple-700">{formatCurrency(stats.totalBalance)}</span>
+            </div>
           </div>
-          <div>
-            <span className="text-[10px] text-gray-500 font-bold block">કુલ હાજર દિવસો</span>
-            <span className="text-lg font-black text-emerald-600">{stats.totalPresent}</span>
-          </div>
-          <div>
-            <span className="text-[10px] text-gray-500 font-bold block">કુલ ગેરહાજર દિવસો</span>
-            <span className="text-lg font-black text-rose-600">{stats.totalAbsent}</span>
-          </div>
-          <div className="border-t border-gray-100 pt-2.5">
-            <span className="text-[10px] text-gray-500 font-bold block">કુલ જનરેટેડ કમાણી (જમા રકમ)</span>
-            <span className="text-base font-black text-teal-700">{formatCurrency(stats.totalEarnings)}</span>
-          </div>
-          <div className="border-t border-gray-100 pt-2.5">
-            <span className="text-[10px] text-gray-500 font-bold block">કુલ ચૂકવેલ રકમ (ઉપાડ)</span>
-            <span className="text-base font-black text-amber-700">{formatCurrency(stats.totalUpad)}</span>
-          </div>
-          <div className="border-t border-gray-100 pt-2.5">
-            <span className="text-[10px] text-gray-500 font-bold block">કુલ ચૂકવવાની બાકી રકમ</span>
-            <span className="text-base font-black text-purple-700">{formatCurrency(stats.totalBalance)}</span>
-          </div>
-        </div>
+        )}
 
         {/* Primary Consolidated Salary Sheet table */}
-        <div className="space-y-3">
-          <h3 className="text-sm font-bold text-teal-900 border-b pb-1">
-            ૧. બધા કારીગરોનું એકીકૃત માસિક પગાર અને બાકી પત્રક
-          </h3>
-          <table className="w-full text-xs border-collapse border border-gray-200 text-left">
-            <thead className="bg-gray-100">
-              <tr>
-                <th className="border border-gray-200 p-2">કારીગર નામ</th>
-                <th className="border border-gray-200 p-2 text-center">રોજનો રોજ (₹)</th>
-                <th className="border border-gray-200 p-2 text-center">હાજર</th>
-                <th className="border border-gray-200 p-2 text-center">ગેરહાજર</th>
-                <th className="border border-gray-200 p-2 text-right">કુલ કમાણી (જમા) (₹)</th>
-                <th className="border border-gray-200 p-2 text-right">ચૂકવેલ રકમ / ઉપાડ (₹)</th>
-                <th className="border border-gray-200 p-2 text-right">ચૂકવવાની બાકી (₹)</th>
-              </tr>
-            </thead>
-            <tbody>
-              {workers.map((w) => {
-                const k = `${w.id}_${selectedYear}_${selectedMonth}`;
-                const att = attendanceDB[k] || {};
-                const t = calculateWorkerTotals(att, w.dailyWage, daysCount);
-                return (
-                  <tr key={w.id}>
-                    <td className="border border-gray-200 p-2 font-medium text-slate-900">
-                      {w.name} ({w.village})
-                    </td>
-                    <td className="border border-gray-200 p-2 text-center">₹{w.dailyWage}</td>
-                    <td className="border border-gray-200 p-2 text-center font-bold text-emerald-700">{t.presentDays}</td>
-                    <td className="border border-gray-200 p-2 text-center font-bold text-rose-700">{t.absentDays}</td>
-                    <td className="border border-gray-200 p-2 text-right font-bold text-teal-700">₹{t.totalEarnings.toLocaleString('gu-IN')}</td>
-                    <td className="border border-gray-200 p-2 text-right font-bold text-amber-700">₹{t.totalUpad.toLocaleString('gu-IN')}</td>
-                    <td className="border border-gray-200 p-2 text-right font-black text-slate-900">₹{t.balance.toLocaleString('gu-IN')}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+        {printTarget === 'all' && (
+          <div className="space-y-3">
+            <h3 className="text-sm font-bold text-teal-900 border-b pb-1">
+              ૧. બધા કારીગરોનું એકીકૃત માસિક પગાર અને બાકી પત્રક
+            </h3>
+            <table className="w-full text-xs border-collapse border border-gray-200 text-left">
+              <thead className="bg-gray-100">
+                <tr>
+                  <th className="border border-gray-200 p-2">કારીગર નામ</th>
+                  <th className="border border-gray-200 p-2 text-center">રોજનો રોજ (₹)</th>
+                  <th className="border border-gray-200 p-2 text-center">હાજર</th>
+                  <th className="border border-gray-200 p-2 text-center">ગેરહાજર</th>
+                  <th className="border border-gray-200 p-2 text-right">કુલ કમાણી (જમા) (₹)</th>
+                  <th className="border border-gray-200 p-2 text-right">ચૂકવેલ રકમ / ઉપાડ (₹)</th>
+                  <th className="border border-gray-200 p-2 text-right">ચૂકવવાની બાકી (₹)</th>
+                </tr>
+              </thead>
+              <tbody>
+                {workers.map((w) => {
+                  const k = `${w.id}_${selectedYear}_${selectedMonth}`;
+                  const att = attendanceDB[k] || {};
+                  const t = calculateWorkerTotals(att, w.dailyWage, daysCount);
+                  return (
+                    <tr key={w.id}>
+                      <td className="border border-gray-200 p-2 font-medium text-slate-900">
+                        {w.name} (સાઇટ: {w.village}){w.mobile ? ` - મો: ${w.mobile}` : ''}
+                      </td>
+                      <td className="border border-gray-200 p-2 text-center">₹{w.dailyWage}</td>
+                      <td className="border border-gray-200 p-2 text-center font-bold text-emerald-700">{t.presentDays}</td>
+                      <td className="border border-gray-200 p-2 text-center font-bold text-rose-700">{t.absentDays}</td>
+                      <td className="border border-gray-200 p-2 text-right font-bold text-teal-700">₹{t.totalEarnings.toLocaleString('gu-IN')}</td>
+                      <td className="border border-gray-200 p-2 text-right font-bold text-amber-700">₹{t.totalUpad.toLocaleString('gu-IN')}</td>
+                      <td className="border border-gray-200 p-2 text-right font-black text-slate-900">₹{t.balance.toLocaleString('gu-IN')}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
 
         {/* Detailed page break for each worker's daily records */}
         <div className="pt-2">
-          <h3 className="text-sm font-bold text-teal-900 border-b pb-1 mb-4">
-            ૨. કારીગરો વાઇસ દૈનિક હાજરી, રોજનો ઉપાડ અને વિગતવાર નોંધો
-          </h3>
+          {printTarget === 'all' && (
+            <h3 className="text-sm font-bold text-teal-900 border-b pb-1 mb-4">
+              ૨. કારીગરો વાઇસ દૈનિક હાજરી, રોજનો ઉપાડ અને વિગતવાર નોંધો
+            </h3>
+          )}
 
-          {workers.map((worker) => {
-            const k = `${worker.id}_${selectedYear}_${selectedMonth}`;
-            const att = attendanceDB[k] || {};
-            const t = calculateWorkerTotals(att, worker.dailyWage, daysCount);
-            const daysArray = Array.from({ length: daysCount }, (_, i) => i + 1);
+          {workers
+            .filter((w) => printTarget === 'all' || w.id === printTarget)
+            .map((worker) => {
+              const k = `${worker.id}_${selectedYear}_${selectedMonth}`;
+              const att = attendanceDB[k] || {};
+              const t = calculateWorkerTotals(att, worker.dailyWage, daysCount);
+              const daysArray = Array.from({ length: daysCount }, (_, i) => i + 1);
 
-            return (
-              <div 
-                key={worker.id} 
-                className="pt-6 pb-6 border-b border-gray-200 last:border-none break-after-page"
-              >
-                {/* Individual strip header */}
-                <div className="bg-teal-50/50 p-3 rounded-lg border border-teal-100 flex justify-between items-center mb-3">
-                  <div>
-                    <h4 className="text-sm font-bold text-teal-950">👷 કારીગર: {worker.name}</h4>
-                    <p className="text-[10px] text-teal-800/80 mt-0.5">ગામ: {worker.village} | દૈનિક રોજ: ₹{worker.dailyWage}</p>
+              return (
+                <div 
+                  key={worker.id} 
+                  className="pt-6 pb-6 border-b border-gray-200 last:border-none break-after-page"
+                >
+                  {/* Detailed header for individual worker PDF report */}
+                  {printTarget !== 'all' && (
+                    <div className="border-b-4 border-teal-600 pb-5 mb-6 flex items-center justify-between">
+                      <div>
+                        <h1 className="text-2xl font-black text-teal-900 font-sans">
+                          👷 કારીગર માસિક હાજરીપત્રક અને ઉપાડ અહેવાલ
+                        </h1>
+                        <p className="text-xs text-gray-500 mt-1">
+                          મહિનો: <span className="font-bold text-teal-700">{activeMonthLabel} - {selectedYear}</span> | રિપોર્ટ કાઢ્યા તારીખ: {new Date().toLocaleDateString('gu-IN')}
+                        </p>
+                      </div>
+                      <div className="text-right border border-teal-200 bg-teal-50 px-3 py-1.5 rounded-lg">
+                        <span className="text-xs font-bold text-teal-800">વ્યક્તિગત હિસાબપત્રક</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Individual strip header */}
+                  <div className="bg-teal-50/50 p-3 rounded-lg border border-teal-100 flex justify-between items-center mb-3">
+                    <div>
+                      <h4 className="text-sm font-bold text-teal-950">👷 કારીગર: {worker.name}</h4>
+                      <p className="text-[10px] text-teal-800/80 mt-0.5">🏗️ સાઇટ: {worker.village}{worker.mobile ? ` | 📞 મો: ${worker.mobile}` : ''} | દૈનિક રોજ: ₹{worker.dailyWage}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-[11px] font-bold text-teal-900">{activeMonthLabel} - {selectedYear}</p>
+                    </div>
                   </div>
-                  <div className="text-right">
-                    <p className="text-[11px] font-bold text-teal-900">{activeMonthLabel} - {selectedYear}</p>
+
+                  {/* Micro Attendance Grid Table */}
+                  <table className="w-full text-[10px] border-collapse border border-gray-200 mb-3 text-left">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="border border-gray-200 p-1 text-center w-8">તારીખ</th>
+                        <th className="border border-gray-200 p-1 text-center w-24">હાજરી હાલો</th>
+                        <th className="border border-gray-200 p-1 text-right w-24">લેલો ઉપાડ (₹)</th>
+                        <th className="border border-gray-200 p-1">અન્ય કોમેન્ટ તથા રજીસ્ટર નોંધો</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {daysArray.map((day) => {
+                        const record = att[day] || { status: '', upad: 0, note: '' };
+                        return (
+                          <tr key={day} className={day % 2 === 0 ? 'bg-gray-50/30' : 'bg-white'}>
+                            <td className="border border-gray-200 p-1 text-center font-bold">{day}</td>
+                            <td className="border border-gray-200 p-1 text-center">
+                              {record.status === 'P' ? (
+                                <span className="text-emerald-700 font-bold bg-emerald-50 px-1 border border-emerald-200 rounded">હાજર (P)</span>
+                              ) : record.status === 'A' ? (
+                                <span className="text-rose-700 font-bold bg-rose-50 px-1 border border-rose-200 rounded">ગેરહાજર (A)</span>
+                              ) : record.status === 'H' ? (
+                                <span className="text-amber-700 font-bold bg-amber-50 px-1 border border-amber-200 rounded">અડધો દિવસ (H)</span>
+                              ) : record.status === 'O' ? (
+                                <span className="text-cyan-700 font-bold bg-cyan-50 px-1 border border-cyan-200 rounded">ઓવર ટાઈમ (O)</span>
+                              ) : record.status === 'D' ? (
+                                <span className="text-purple-700 font-bold bg-purple-50 px-1 border border-purple-200 rounded">ડબલ OT (D)</span>
+                              ) : (
+                                <span className="text-gray-400">-</span>
+                              )}
+                            </td>
+                            <td className="border border-gray-200 p-1 text-right font-semibold">
+                              {record.upad > 0 ? `₹${record.upad}` : '-'}
+                            </td>
+                            <td className="border border-gray-200 p-1 text-gray-600 italic">
+                              {record.note || ''}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+
+                  {/* Summary footer for this specific worker to make it clear */}
+                  <div className="grid grid-cols-5 gap-2 text-center text-[10px] bg-slate-50 p-2 rounded-lg border border-slate-100">
+                    <div>
+                      <span className="text-gray-500 font-semibold block">હાજર દિવસ</span>
+                      <span className="text-xs font-bold text-emerald-700">{t.presentDays}</span>
+                    </div>
+                    <div>
+                      <span className="text-gray-500 font-semibold block">ગેરહાજર</span>
+                      <span className="text-xs font-bold text-rose-700">{t.absentDays}</span>
+                    </div>
+                    <div>
+                      <span className="text-gray-500 font-semibold block">કુલ કમાણી (જમા)</span>
+                      <span className="text-xs font-bold text-teal-800">₹{t.totalEarnings}</span>
+                    </div>
+                    <div>
+                      <span className="text-gray-500 font-semibold block">કુલ ચૂકવેલ રકમ</span>
+                      <span className="text-xs font-bold text-amber-700">₹{t.totalUpad}</span>
+                    </div>
+                    <div>
+                      <span className="text-gray-500 font-semibold block">બાકી ચૂકવણી</span>
+                      <span className="text-xs font-black text-purple-700">₹{t.balance}</span>
+                    </div>
+                  </div>
+
+                  {/* Standard Signatures line for approval and handovers */}
+                  <div className="mt-8 grid grid-cols-2 gap-8 text-center text-[10px] font-bold text-gray-600 pt-6">
+                    <div className="pt-6 border-t border-dashed border-gray-300">
+                      ✍️ કારીગરની સહી (Worker's Signature)
+                    </div>
+                    <div className="pt-6 border-t border-dashed border-gray-300">
+                      ✍️ માલિક / સેઠની સહી (Owner's Signature)
+                    </div>
                   </div>
                 </div>
-
-                {/* Micro Attendance Grid Table */}
-                <table className="w-full text-[10px] border-collapse border border-gray-200 mb-3 text-left">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="border border-gray-200 p-1 text-center w-8">તારીખ</th>
-                      <th className="border border-gray-200 p-1 text-center w-24">હાજરી હાલો</th>
-                      <th className="border border-gray-200 p-1 text-right w-24">લેલો ઉપાડ (₹)</th>
-                      <th className="border border-gray-200 p-1">અન્ય કોમેન્ટ તથા રજીસ્ટર નોંધો</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {daysArray.map((day) => {
-                      const record = att[day] || { status: '', upad: 0, note: '' };
-                      return (
-                        <tr key={day} className={day % 2 === 0 ? 'bg-gray-50/30' : 'bg-white'}>
-                          <td className="border border-gray-200 p-1 text-center font-bold">{day}</td>
-                          <td className="border border-gray-200 p-1 text-center">
-                            {record.status === 'P' ? (
-                              <span className="text-emerald-700 font-bold bg-emerald-50 px-1 border border-emerald-200 rounded">હાજર (P)</span>
-                            ) : record.status === 'A' ? (
-                              <span className="text-rose-700 font-bold bg-rose-50 px-1 border border-rose-200 rounded">ગેરહાજર (A)</span>
-                            ) : record.status === 'H' ? (
-                              <span className="text-amber-700 font-bold bg-amber-50 px-1 border border-amber-200 rounded">અડધો દિવસ (H)</span>
-                            ) : record.status === 'O' ? (
-                              <span className="text-cyan-700 font-bold bg-cyan-50 px-1 border border-cyan-200 rounded">ઓવર ટાઈમ (O)</span>
-                            ) : record.status === 'D' ? (
-                              <span className="text-purple-700 font-bold bg-purple-50 px-1 border border-purple-200 rounded">ડબલ OT (D)</span>
-                            ) : (
-                              <span className="text-gray-400">-</span>
-                            )}
-                          </td>
-                          <td className="border border-gray-200 p-1 text-right font-semibold">
-                            {record.upad > 0 ? `₹${record.upad}` : '-'}
-                          </td>
-                          <td className="border border-gray-200 p-1 text-gray-600 italic">
-                            {record.note || ''}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-
-                {/* Summary footer for this specific worker to make it clear */}
-                <div className="grid grid-cols-5 gap-2 text-center text-[10px] bg-slate-50 p-2 rounded-lg border border-slate-100">
-                  <div>
-                    <span className="text-gray-500 font-semibold block">હાજર દિવસ</span>
-                    <span className="text-xs font-bold text-emerald-700">{t.presentDays}</span>
-                  </div>
-                  <div>
-                    <span className="text-gray-500 font-semibold block">ગેરહાજર</span>
-                    <span className="text-xs font-bold text-rose-700">{t.absentDays}</span>
-                  </div>
-                  <div>
-                    <span className="text-gray-500 font-semibold block">કુલ કમાણી (જમા)</span>
-                    <span className="text-xs font-bold text-teal-800">₹{t.totalEarnings}</span>
-                  </div>
-                  <div>
-                    <span className="text-gray-500 font-semibold block">કુલ ચૂકવેલ રકમ</span>
-                    <span className="text-xs font-bold text-amber-700">₹{t.totalUpad}</span>
-                  </div>
-                  <div>
-                    <span className="text-gray-500 font-semibold block">બાકી ચૂકવણી</span>
-                    <span className="text-xs font-black text-purple-700">₹{t.balance}</span>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
+              );
+            })}
         </div>
       </div>
     </div>

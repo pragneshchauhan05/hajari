@@ -17,6 +17,10 @@
           "type": "string",
           "description": "Village or location of the worker"
         },
+        "mobile": {
+          "type": "string",
+          "description": "Mobile number of the worker"
+        },
         "dailyWage": {
           "type": "number",
           "description": "Daily wage rate for the worker"

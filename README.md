@@ -1,114 +1,20 @@
-# Hajari 📋
+<div align="center">
+<img width="1200" height="475" alt="GHBanner" src="https://ai.google.dev/static/site-assets/images/share-ais-513315318.png" />
+</div>
 
-A modern **Attendance Management Web Application** built using **HTML, CSS, and JavaScript**.
-This project helps manage workers (કારીગરો), mark daily attendance, and generate attendance reports with a simple and responsive interface.
+# Run and deploy your AI Studio app
 
-## ✨ Features
+This contains everything you need to run your app locally.
 
-* 👷 Add new workers (કારીગરો)
-* 📝 Store worker details
+View your app in AI Studio: https://ai.studio/apps/c02f5d4b-d697-4775-9ceb-5fec58e5678e
 
-  * Name
-  * Village
-  * Daily Salary
-* 📅 Select Month and Year
-* ✅ Mark Daily Attendance
-* 📊 Dashboard for attendance records
-* 📈 Attendance Reports
-* 💰 Salary calculation based on attendance
-* 📱 Responsive UI
+## Run Locally
 
----
-
-## 🛠️ Technologies Used
-
-* HTML5
-* CSS3
-* JavaScript (Vanilla)
-
----
-
-## 📂 Project Structure
+**Prerequisites:**  Node.js
 
 
-hajari/
-│
-├── index.html
-├── dashboard.html
-├── style.css
-├── script.js
-├── assets/
-└── README.md
-
-
----
-
-## 🚀 Getting Started
-
-### Clone the repository
-
-
-git clone https://github.com/pragneshchauhan05/hajari.git
-
-
-### Open the project
-
-cd hajari
-
-
-Simply open **index.html** in your browser.
-
----
-
-## 🎯 Future Improvements
-
-* Local Storage support
-* Export attendance to Word/PDF/Excel
-* Authentication/Login system
-* Search and Filter workers
-* Monthly salary report
-* Backup & Restore data
-* Cloud database integration
-
----
-
-## 🤝 Contributing
-
-Contributions are welcome!
-
-1. Fork the repository
-2. Create a new branch
-
-
-git checkout -b feature-name
-
-
-3. Commit your changes
-
-
-git commit -m "Add new feature"
-
-
-4. Push to GitHub
-
-
-git push origin feature-name
-
-
-5. Create a Pull Request
-
----
-
-## 📄 License
-
-This project is licensed under the MIT License.
-
----
-
-## 👨‍💻 Author
-
-**Pragnesh Chauhan**
-
-GitHub: https://github.com/pragneshchauhan05
-
-⭐ If you like this project, don't forget to star the repository!
+1. Install dependencies:
+   `npm install`
+2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
+3. Run the app:
+   `npm run dev`
