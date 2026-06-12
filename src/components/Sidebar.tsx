@@ -35,7 +35,7 @@ export default function Sidebar({ activeTab, setActiveTab }: SidebarProps) {
                 key={item.id}
                 id={`sidebar-tab-${item.id}`}
                 onClick={() => setActiveTab(item.id)}
-                className={`flex w-full items-center justify-center gap-2.5 rounded-xl px-3 py-2.5 sm:px-4 sm:py-3 text-xs sm:text-sm font-medium transition-all duration-200 select-none lg:w-full lg:justify-start ${
+                className={`flex w-full items-center justify-center gap-1.5 xs:gap-2.5 rounded-xl px-2 py-2 xs:px-3 xs:py-2.5 sm:px-4 sm:py-3 text-[11px] xs:text-xs sm:text-sm font-medium transition-all duration-200 select-none lg:w-full lg:justify-start ${
                   isActive
                     ? 'bg-teal-500 text-white shadow-md shadow-teal-100 dark:shadow-none'
                     : 'text-gray-600 hover:bg-teal-50/50 hover:text-teal-600 dark:text-slate-350 dark:hover:bg-slate-800 dark:hover:text-teal-400'
@@ -43,17 +43,17 @@ export default function Sidebar({ activeTab, setActiveTab }: SidebarProps) {
               >
                 {/* Decorative Pill/Icon */}
                 <div
-                  className={`flex h-8 w-8 items-center justify-center rounded-lg transition-transform ${
+                  className={`flex h-7 w-7 xs:h-8 xs:w-8 shrink-0 items-center justify-center rounded-lg transition-transform ${
                     isActive
                       ? 'bg-white/20 scale-105'
                       : 'bg-teal-50 text-teal-600 dark:bg-slate-800 dark:text-teal-400'
                   }`}
                 >
-                  <i className={`fa-solid ${item.icon} text-sm`}></i>
+                  <i className={`fa-solid ${item.icon} text-xs xs:text-sm`}></i>
                 </div>
                 
                 {/* Label */}
-                <span className="whitespace-nowrap font-medium tracking-wide">
+                <span className="whitespace-normal text-left sm:whitespace-nowrap font-bold tracking-wide leading-tight text-[11px] xs:text-xs sm:text-sm">
                   {item.label}
                 </span>
 

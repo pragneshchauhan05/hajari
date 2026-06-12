@@ -69,47 +69,47 @@ export default function ReportsView({
       </div>
 
       {/* Screen Only: Six Summary Cards */}
-      <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-6 print:hidden">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 lg:grid-cols-6 print:hidden">
         {/* Total Workers */}
-        <div className="rounded-xl border border-gray-100 bg-white p-4 shadow-sm text-center dark:border-slate-800 dark:bg-slate-900 transition-colors">
-          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest dark:text-slate-500">કુલ કારીગરો</p>
-          <h4 className="text-2xl font-black text-slate-800 font-sans mt-2 dark:text-slate-100">{stats.totalWorkers}</h4>
-          <span className="text-[10px] text-gray-400 mt-1 block dark:text-slate-500">કંપનીમાં રજિસ્ટર્ડ</span>
+        <div className="rounded-xl border border-gray-100 bg-white p-3 xs:p-4 shadow-sm text-center dark:border-slate-800 dark:bg-slate-900 transition-colors">
+          <p className="text-[9px] xs:text-[10px] sm:text-xs font-bold text-gray-400 uppercase tracking-widest dark:text-slate-500 truncate" title="કુલ કારીગરો">કુલ કારીગરો</p>
+          <h4 className="text-xl sm:text-2xl font-black text-slate-800 font-sans mt-1.5 dark:text-slate-100">{stats.totalWorkers}</h4>
+          <span className="text-[9px] sm:text-[10px] text-gray-400 mt-1 block dark:text-slate-500 truncate" title="કંપનીમાં રજિસ્ટર્ડ">કંપનીમાં રજિસ્ટર્ડ</span>
         </div>
 
         {/* Total Present */}
-        <div className="rounded-xl border border-emerald-100 bg-emerald-50/20 p-4 shadow-sm text-center dark:border-emerald-950/40 dark:bg-emerald-950/20 transition-colors">
-          <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest dark:text-emerald-400">કુલ હાજર</p>
-          <h4 className="text-2xl font-black text-emerald-600 font-sans mt-2 dark:text-emerald-400">{stats.totalPresent}</h4>
-          <span className="text-[10px] text-emerald-500 mt-1 block dark:text-emerald-500">નક્કી કરેલ દિવસો</span>
+        <div className="rounded-xl border border-emerald-100 bg-emerald-50/20 p-3 xs:p-4 shadow-sm text-center dark:border-emerald-950/40 dark:bg-emerald-950/20 transition-colors">
+          <p className="text-[9px] xs:text-[10px] sm:text-xs font-bold text-emerald-600 uppercase tracking-widest dark:text-emerald-400 truncate" title="કુલ હાજર">કુલ હાજર</p>
+          <h4 className="text-xl sm:text-2xl font-black text-emerald-600 font-sans mt-1.5 dark:text-emerald-400">{stats.totalPresent}</h4>
+          <span className="text-[9px] sm:text-[10px] text-emerald-500 mt-1 block dark:text-emerald-500 truncate" title="નક્કી કરેલ દિવસો">નક્કી કરેલ દિવસો</span>
         </div>
 
         {/* Total Absent */}
-        <div className="rounded-xl border border-rose-100 bg-rose-50/20 p-4 shadow-sm text-center dark:border-rose-900/40 dark:bg-rose-900/20 transition-colors">
-          <p className="text-[10px] font-bold text-rose-600 uppercase tracking-widest dark:text-rose-400">કુલ ગેરહાજર</p>
-          <h4 className="text-2xl font-black text-rose-600 font-sans mt-2 dark:text-rose-400">{stats.totalAbsent}</h4>
-          <span className="text-[10px] text-rose-500 mt-1 block dark:text-rose-500">ગેરહાજર દિવસો</span>
+        <div className="rounded-xl border border-rose-100 bg-rose-50/20 p-3 xs:p-4 shadow-sm text-center dark:border-rose-900/40 dark:bg-rose-900/20 transition-colors">
+          <p className="text-[9px] xs:text-[10px] sm:text-xs font-bold text-rose-600 uppercase tracking-widest dark:text-rose-400 truncate" title="કુલ ગેરહાજર">કુલ ગેરહાજર</p>
+          <h4 className="text-xl sm:text-2xl font-black text-rose-600 font-sans mt-1.5 dark:text-rose-400">{stats.totalAbsent}</h4>
+          <span className="text-[9px] sm:text-[10px] text-rose-500 mt-1 block dark:text-rose-500 truncate" title="ગેરહાજર દિવસો">ગેરહાજર દિવસો</span>
         </div>
 
         {/* Total Earnings */}
-        <div className="rounded-xl border border-cyan-100 bg-cyan-50/20 p-4 shadow-sm text-center dark:border-cyan-950/40 dark:bg-cyan-950/20 transition-colors">
-          <p className="text-[10px] font-bold text-cyan-600 uppercase tracking-widest dark:text-cyan-400">કુલ બનેલ કમાણી (જમા)</p>
-          <h4 className="text-xl font-bold text-cyan-700 font-sans mt-2 dark:text-cyan-400">{formatCurrency(stats.totalEarnings)}</h4>
-          <span className="text-[10px] text-cyan-500 mt-1 block dark:text-cyan-400">સિસ્ટમ દ્વારા જનરેટ</span>
+        <div className="rounded-xl border border-cyan-100 bg-cyan-50/20 p-3 xs:p-4 shadow-sm text-center dark:border-cyan-950/40 dark:bg-cyan-950/20 transition-colors">
+          <p className="text-[9px] xs:text-[10px] sm:text-xs font-bold text-cyan-600 uppercase tracking-widest dark:text-cyan-400 truncate" title="કુલ બનેલ કમાણી (જમા)">કુલ બનેલ કમાણી (જમા)</p>
+          <h4 className="text-base sm:text-xl font-bold text-cyan-700 font-sans mt-1.5 dark:text-cyan-400">{formatCurrency(stats.totalEarnings)}</h4>
+          <span className="text-[9px] sm:text-[10px] text-cyan-500 mt-1 block dark:text-cyan-400 truncate" title="સિસ્ટમ દ્વારા જનરેટ">સિસ્ટમ દ્વારા જનરેટ</span>
         </div>
 
         {/* Total Upad */}
-        <div className="rounded-xl border border-amber-100 bg-amber-50/20 p-4 shadow-sm text-center dark:border-amber-950/40 dark:bg-amber-950/20 transition-colors">
-          <p className="text-[10px] font-bold text-amber-600 uppercase tracking-widest dark:text-amber-400">કુલ ચૂકવેલ રકમ (ઉપાડ)</p>
-          <h4 className="text-xl font-bold text-amber-700 font-sans mt-2 dark:text-amber-400">{formatCurrency(stats.totalUpad)}</h4>
-          <span className="text-[10px] text-amber-500 mt-1 block dark:text-amber-400">મેં ચૂકવેલ કુલ રકમ</span>
+        <div className="rounded-xl border border-amber-100 bg-amber-50/20 p-3 xs:p-4 shadow-sm text-center dark:border-amber-950/40 dark:bg-amber-950/20 transition-colors">
+          <p className="text-[9px] xs:text-[10px] sm:text-xs font-bold text-amber-600 uppercase tracking-widest dark:text-amber-400 truncate" title="કુલ ચૂકવેલ રકમ (ઉપાડ)">કુલ ચૂકવેલ રકમ (ઉપાડ)</p>
+          <h4 className="text-base sm:text-xl font-bold text-amber-700 font-sans mt-1.5 dark:text-amber-400">{formatCurrency(stats.totalUpad)}</h4>
+          <span className="text-[9px] sm:text-[10px] text-amber-500 mt-1 block dark:text-amber-400 truncate" title="મેં ચૂકવેલ કુલ રકમ">મેં ચૂકવેલ કુલ રકમ</span>
         </div>
 
         {/* Total Remaining / Balance */}
-        <div className="rounded-xl border border-purple-100 bg-purple-50/20 p-4 shadow-sm text-center dark:border-purple-950/40 dark:bg-purple-950/20 transition-colors">
-          <p className="text-[10px] font-bold text-purple-600 uppercase tracking-widest dark:text-purple-400">કુલ ચૂકવવાની બાકી રકમ</p>
-          <h4 className="text-xl font-bold text-purple-700 font-sans mt-2 dark:text-purple-400">{formatCurrency(stats.totalBalance)}</h4>
-          <span className="text-[10px] text-purple-500 mt-1 block dark:text-purple-400">હવે ચૂકવવાના બાકી રૂપિયા</span>
+        <div className="rounded-xl border border-purple-100 bg-purple-50/20 p-3 xs:p-4 shadow-sm text-center dark:border-purple-950/40 dark:bg-purple-950/20 transition-colors">
+          <p className="text-[9px] xs:text-[10px] sm:text-xs font-bold text-purple-600 uppercase tracking-widest dark:text-purple-400 truncate" title="કુલ ચૂકવવાની બાકી રકમ">કુલ ચૂકવવાની બાકી રકમ</p>
+          <h4 className="text-base sm:text-xl font-bold text-purple-700 font-sans mt-1.5 dark:text-purple-400">{formatCurrency(stats.totalBalance)}</h4>
+          <span className="text-[9px] sm:text-[10px] text-purple-500 mt-1 block dark:text-purple-400 truncate" title="હવે ચૂકવવાના બાકી રૂપિયા">હવે ચૂકવવાના બાકી રૂપિયા</span>
         </div>
       </div>
 

@@ -103,6 +103,7 @@ export const logout = async () => {
 /**
  * Saves all user workers AND attendance records to Firebase Firestore.
  * Using batching to ensure transactional security.
+ * Also cleans up any deleted workers or attendance records on the cloud.
  */
 export const backupToFirestore = async (
   userId: string,
@@ -111,6 +112,27 @@ export const backupToFirestore = async (
 ): Promise<void> => {
   try {
     const batch = writeBatch(db);
+
+    const activeWorkerIds = new Set(workers.map(w => w.id));
+    const activeAttendanceKeys = new Set(Object.keys(attendanceDB));
+
+    // Get existing workers on Firestore to detect and process deletions
+    const workersQuery = query(collection(db, 'workers'), where('userId', '==', userId));
+    const workersSnapshot = await getDocs(workersQuery);
+    workersSnapshot.forEach((docSnap) => {
+      if (!activeWorkerIds.has(docSnap.id)) {
+        batch.delete(docSnap.ref);
+      }
+    });
+
+    // Get existing attendance on Firestore to detect and process deletions
+    const attendanceQuery = query(collection(db, 'attendance'), where('userId', '==', userId));
+    const attendanceSnapshot = await getDocs(attendanceQuery);
+    attendanceSnapshot.forEach((docSnap) => {
+      if (!activeAttendanceKeys.has(docSnap.id)) {
+        batch.delete(docSnap.ref);
+      }
+    });
 
     // Save/Update workers
     for (const worker of workers) {
@@ -167,13 +189,29 @@ export const restoreFromFirestore = async (
     const workersList: Worker[] = [];
     workersSnapshot.forEach((docSnap) => {
       const d = docSnap.data();
-      workersList.push({
-        id: d.id,
-        name: d.name,
-        village: d.village,
-        dailyWage: d.dailyWage,
-        mobile: d.mobile || '',
-      });
+      const isDemo =
+        d.id === 'worker-1' ||
+        d.id === 'worker-2' ||
+        d.id === 'worker-3' ||
+        d.name === 'હસમુખભાઈ' ||
+        d.name === 'રમેશભાઈ' ||
+        d.name === 'મુકેશભાઈ' ||
+        d.name === 'હસમુખ' ||
+        d.name === 'રમેશ' ||
+        d.name === 'મુકેશ' ||
+        d.name === 'Hasmukhbhai' ||
+        d.name === 'Rameshbhai' ||
+        d.name === 'Mukeshbhai';
+      
+      if (!isDemo) {
+        workersList.push({
+          id: d.id,
+          name: d.name,
+          village: d.village,
+          dailyWage: d.dailyWage,
+          mobile: d.mobile || '',
+        });
+      }
     });
 
     // 2. Fetch Attendance matching userId
@@ -184,7 +222,16 @@ export const restoreFromFirestore = async (
     attendanceSnapshot.forEach((docSnap) => {
       const d = docSnap.data();
       if (d.id && d.records) {
-        retrievedDB[d.id] = d.records;
+        const parts = d.id.split('_');
+        const workerId = parts[0];
+        const isDemo =
+          workerId === 'worker-1' ||
+          workerId === 'worker-2' ||
+          workerId === 'worker-3';
+        
+        if (!isDemo) {
+          retrievedDB[d.id] = d.records;
+        }
       }
     });
 

@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
+import { Worker } from '../types';
 
 interface WorkerModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSave: (data: { name: string; village: string; dailyWage: number; mobile?: string }) => void;
-  initialData?: { name: string; village: string; dailyWage: number; mobile?: string } | null;
+  initialData?: Worker | null;
+  workers: Worker[];
 }
 
 export default function WorkerModal({
@@ -12,6 +14,7 @@ export default function WorkerModal({
   onClose,
   onSave,
   initialData,
+  workers,
 }: WorkerModalProps) {
   const [name, setName] = useState('');
   const [village, setVillage] = useState('');
@@ -42,10 +45,25 @@ export default function WorkerModal({
     setError('');
 
     // Validations
-    if (!name.trim()) {
+    const trimmedName = name.trim();
+    if (!trimmedName) {
       setError('કૃપા કરીને કારીગરનું નામ લખો!');
       return;
     }
+
+    // Check duplicate name (same case or same spelling but extra spacing trimmed)
+    const isDuplicate = workers.some((w) => {
+      if (initialData && w.id === initialData.id) {
+        return false;
+      }
+      return w.name.trim().toLowerCase() === trimmedName.toLowerCase();
+    });
+
+    if (isDuplicate) {
+      setError('આ નામનો કારીગર પહેલેથી જ નોંધાયેલ છે! કૃપા કરીને નામ પાછળ અટક અથવા પિતાનું નામ ઉમેરો.');
+      return;
+    }
+
     if (!village.trim()) {
       setError('કૃપા કરીને કારીગરની સાઇટનું નામ લખો!');
       return;
@@ -64,7 +82,7 @@ export default function WorkerModal({
     }
 
     onSave({
-      name: name.trim(),
+      name: trimmedName,
       village: village.trim(),
       mobile: mobile.trim(),
       dailyWage: Number(dailyWage),
