@@ -17,4 +17,4 @@ export interface DailyRecord {
 // Maps date string (1 to 31) to DailyRecord
 export type MonthlyWorkerAttendance = Record<number, DailyRecord>;
 
-export type ActiveTab = 'dashboard' | 'workers' | 'attendance' | 'reports';
+export type ActiveTab = 'dashboard' | 'workers' | 'attendance' | 'reports' | 'admin';

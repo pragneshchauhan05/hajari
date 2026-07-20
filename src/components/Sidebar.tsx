@@ -4,15 +4,25 @@ import { ActiveTab } from '../types';
 interface SidebarProps {
   activeTab: ActiveTab;
   setActiveTab: (tab: ActiveTab) => void;
+  isAdmin?: boolean;
 }
 
-export default function Sidebar({ activeTab, setActiveTab }: SidebarProps) {
+export default function Sidebar({ activeTab, setActiveTab, isAdmin }: SidebarProps) {
   const menuItems = [
     { id: 'dashboard' as ActiveTab, label: 'ડેશબોર્ડ', icon: 'fa-house', color: 'from-blue-500 to-indigo-600' },
     { id: 'workers' as ActiveTab, label: 'કારીગરો', icon: 'fa-users-gear', color: 'from-amber-400 to-orange-500' },
     { id: 'attendance' as ActiveTab, label: 'હાજરી કલેક્ટર', icon: 'fa-calendar-check', color: 'from-teal-400 to-emerald-600' },
     { id: 'reports' as ActiveTab, label: 'અહેવાલ', icon: 'fa-chart-pie', color: 'from-rose-500 to-pink-600' },
   ];
+
+  if (isAdmin) {
+    menuItems.push({
+      id: 'admin' as ActiveTab,
+      label: 'એડમિન પેનલ',
+      icon: 'fa-user-shield',
+      color: 'from-purple-500 to-indigo-600'
+    });
+  }
 
   return (
     <aside className="w-full lg:w-64 shrink-0 transition-colors duration-200">
@@ -27,7 +37,7 @@ export default function Sidebar({ activeTab, setActiveTab }: SidebarProps) {
         </div>
 
         {/* Navigation list */}
-        <nav className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:flex lg:flex-col lg:space-y-1">
+        <nav className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-5 lg:flex lg:flex-col lg:space-y-1">
           {menuItems.map((item) => {
             const isActive = activeTab === item.id;
             return (

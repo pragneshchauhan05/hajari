@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app';
-import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, User } from 'firebase/auth';
+import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, User, signInAnonymously } from 'firebase/auth';
 import { getFirestore, doc, collection, writeBatch, getDocs, query, where, getDocFromServer } from 'firebase/firestore';
 import firebaseConfig from '../../firebase-applet-config.json';
 import { Worker, MonthlyWorkerAttendance } from '../types';
@@ -79,7 +79,12 @@ export const initAuth = (
     if (user) {
       if (onAuthSuccess) onAuthSuccess(user);
     } else {
-      if (onAuthFailure) onAuthFailure();
+      try {
+        await signInAnonymously(auth);
+      } catch (err) {
+        console.error('Seamless anonymous sign-in failed:', err);
+        if (onAuthFailure) onAuthFailure();
+      }
     }
   });
 };
@@ -108,7 +113,8 @@ export const logout = async () => {
 export const backupToFirestore = async (
   userId: string,
   workers: Worker[],
-  attendanceDB: Record<string, MonthlyWorkerAttendance>
+  attendanceDB: Record<string, MonthlyWorkerAttendance>,
+  userEmail?: string | null
 ): Promise<void> => {
   try {
     const batch = writeBatch(db);
@@ -144,6 +150,7 @@ export const backupToFirestore = async (
         dailyWage: worker.dailyWage,
         mobile: worker.mobile || '',
         userId: userId,
+        userEmail: userEmail || '',
         updatedAt: new Date().toISOString()
       }, { merge: true });
     }
@@ -165,6 +172,7 @@ export const backupToFirestore = async (
         month,
         records: monthlyData,
         userId: userId,
+        userEmail: userEmail || '',
         updatedAt: new Date().toISOString()
       }, { merge: true });
     }
@@ -247,5 +255,102 @@ export const restoreFromFirestore = async (
   } catch (error) {
     handleFirestoreError(error, OperationType.LIST, 'workers & attendance lists');
     return null;
+  }
+};
+
+export interface UserProfileData {
+  userId: string;
+  isAnonymous: boolean;
+  userEmail?: string;
+  workers: Worker[];
+  attendanceDB: Record<string, MonthlyWorkerAttendance>;
+}
+
+export const getAdminAllData = async (): Promise<UserProfileData[]> => {
+  try {
+    const workersSnapshot = await getDocs(collection(db, 'workers'));
+    const attendanceSnapshot = await getDocs(collection(db, 'attendance'));
+
+    const usersMap: Record<string, UserProfileData> = {};
+
+    workersSnapshot.forEach((docSnap) => {
+      const data = docSnap.data();
+      const userId = data.userId || 'unknown';
+      const userEmail = data.userEmail || '';
+      
+      const isDemo =
+        data.id === 'worker-1' ||
+        data.id === 'worker-2' ||
+        data.id === 'worker-3' ||
+        data.name === 'હસમુખભાઈ' ||
+        data.name === 'રમેશભાઈ' ||
+        data.name === 'મુકેશભાઈ' ||
+        data.name === 'હસમુખ' ||
+        data.name === 'રમેશ' ||
+        data.name === 'મુકેશ' ||
+        data.name === 'Hasmukhbhai' ||
+        data.name === 'Rameshbhai' ||
+        data.name === 'Mukeshbhai';
+
+      if (isDemo) return;
+
+      if (!usersMap[userId]) {
+        usersMap[userId] = {
+          userId,
+          isAnonymous: !userEmail,
+          userEmail: userEmail || undefined,
+          workers: [],
+          attendanceDB: {},
+        };
+      } else if (userEmail && !usersMap[userId].userEmail) {
+        usersMap[userId].userEmail = userEmail;
+        usersMap[userId].isAnonymous = false;
+      }
+
+      usersMap[userId].workers.push({
+        id: data.id,
+        name: data.name,
+        village: data.village,
+        dailyWage: data.dailyWage,
+        mobile: data.mobile || '',
+      });
+    });
+
+    attendanceSnapshot.forEach((docSnap) => {
+      const data = docSnap.data();
+      const userId = data.userId || 'unknown';
+      const key = data.id; // e.g. workerId_year_month
+      const userEmail = data.userEmail || '';
+      if (!key || !data.records) return;
+
+      const parts = key.split('_');
+      const workerId = parts[0];
+      const isDemo =
+        workerId === 'worker-1' ||
+        workerId === 'worker-2' ||
+        workerId === 'worker-3';
+
+      if (isDemo) return;
+
+      if (!usersMap[userId]) {
+        usersMap[userId] = {
+          userId,
+          isAnonymous: !userEmail,
+          userEmail: userEmail || undefined,
+          workers: [],
+          attendanceDB: {},
+        };
+      } else if (userEmail && !usersMap[userId].userEmail) {
+        usersMap[userId].userEmail = userEmail;
+        usersMap[userId].isAnonymous = false;
+      }
+
+      usersMap[userId].attendanceDB[key] = data.records;
+    });
+
+    return Object.values(usersMap);
+  } catch (error) {
+    console.error('Error fetching admin data:', error);
+    throw error;
   }
 };

@@ -6,6 +6,7 @@ import DashboardView from './components/DashboardView';
 import WorkersView from './components/WorkersView';
 import AttendanceView from './components/AttendanceView';
 import ReportsView from './components/ReportsView';
+import AdminView from './components/AdminView';
 import { Worker, MonthlyWorkerAttendance, ActiveTab, AttendanceStatus } from './types';
 import { User } from 'firebase/auth';
 import {
@@ -236,7 +237,7 @@ export default function App() {
       setIsBackingUp(true);
       setStatusMessage(null);
       try {
-        await backupToFirestore(user.uid, workers, attendanceDB);
+        await backupToFirestore(user.uid, workers, attendanceDB, user.email);
         setHasLocalChanges(false);
         setStatusMessage({
           text: 'નવા સુધારા આપોઆપ ક્લાઉડ ડેટાબેઝ પર સુરક્ષિત રીતે સેવ થઈ ગયા છે ✓',
@@ -432,6 +433,8 @@ export default function App() {
     setAttendanceDB(restoredAttendanceDB);
   };
 
+  const isAdmin = user?.email === 'pragneshc517@gmail.com';
+
   return (
     <div className="min-h-screen flex flex-col bg-gray-50 pb-12 transition-colors duration-200 dark:bg-slate-950">
       {/* Premium Top Navigation header */}
@@ -445,11 +448,11 @@ export default function App() {
       />
 
       {/* Main Responsive Grid Layout Container */}
-      <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-8 sm:px-6 lg:px-8">
+      <main className="mx-auto w-full max-w-7xl flex-1 px-3 py-4 sm:px-6 sm:py-6 lg:px-8 lg:py-8">
         <div className="flex flex-col gap-6 lg:flex-row">
           
           {/* Left Navigation Rails Sidebar */}
-          <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} />
+          <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} isAdmin={isAdmin} />
 
           {/* Right Main Content Stage section */}
           <section className="flex-1 min-w-0" id="main-content-stage">
@@ -518,9 +521,20 @@ export default function App() {
                 onViewWorkerAttendance={handleViewWorkerAttendance}
               />
             )}
+
+            {activeTab === 'admin' && isAdmin && (
+              <AdminView />
+            )}
           </section>
         </div>
       </main>
+
+      {/* Subdued Footer */}
+      <footer className="w-full text-center py-4 mt-auto border-t border-gray-100/10 dark:border-slate-900/10">
+        <p className="text-[10px] sm:text-xs font-black text-gray-450/40 dark:text-slate-600/40 font-sans tracking-wide select-none">
+          developed by Pragnesh Chauhan
+        </p>
+      </footer>
 
       {/* Floating Worker Form Dialog modal */}
       <WorkerModal
