@@ -79,6 +79,49 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('dashboard');
   const [selectedWorkerId, setSelectedWorkerId] = useState<string | null>(null);
 
+  // Initialize the base history state so that we can always navigate back to the initial dashboard state
+  useEffect(() => {
+    if (!window.history.state) {
+      window.history.replaceState({ tab: 'dashboard', workerId: null }, '');
+    }
+  }, []);
+
+  // Synchronize activeTab and selectedWorkerId with history to support browser/mobile back buttons
+  useEffect(() => {
+    const handlePopState = (event: PopStateEvent) => {
+      if (event.state) {
+        const { tab, workerId } = event.state;
+        setActiveTab(tab || 'dashboard');
+        setSelectedWorkerId(workerId || null);
+      } else {
+        // If no state, fall back to dashboard
+        setActiveTab('dashboard');
+        setSelectedWorkerId(null);
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+    };
+  }, []);
+
+  // Update history state whenever navigation/selected worker changes
+  useEffect(() => {
+    const currentState = window.history.state;
+    const tabInState = currentState?.tab;
+    const workerIdInState = currentState?.workerId;
+
+    // Only push if the state is actually different to avoid bloating history
+    if (tabInState !== activeTab || workerIdInState !== selectedWorkerId) {
+      if (activeTab === 'dashboard' && selectedWorkerId === null) {
+        window.history.replaceState({ tab: 'dashboard', workerId: null }, '');
+      } else {
+        window.history.pushState({ tab: activeTab, workerId: selectedWorkerId }, '');
+      }
+    }
+  }, [activeTab, selectedWorkerId]);
+
   // Darkmode theme preference state
   const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
     const saved = localStorage.getItem('hazari_dark_mode');

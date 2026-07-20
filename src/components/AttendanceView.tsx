@@ -111,54 +111,14 @@ export default function AttendanceView({
 
     return (
       <div className="space-y-6 max-w-2xl mx-auto" id={`print-card-${selectedWorker.id}`}>
-        {/* Top Header Card (with Crimson / Deep Pink Background style #c2185b) */}
-        <div className="rounded-3xl bg-[#c2185b] p-6 text-white shadow-lg transition-all">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <h2 className="text-xl sm:text-2xl font-black font-sans tracking-tight flex items-center gap-2">
-              <span className="text-2xl">📋</span> હાજરી કાર્ડ સિસ્ટમ
-            </h2>
-
-            {/* Quick selectors inside header */}
-            <div className="flex items-center gap-2 print:hidden select-none">
-              <select
-                value={selectedMonth}
-                onChange={(e) => {
-                  onMonthChange(Number(e.target.value));
-                }}
-                className="rounded-lg bg-white/20 border border-white/10 px-3 py-1.5 text-xs font-bold text-white outline-none cursor-pointer hover:bg-white/30 transition-all"
-              >
-                {GUJARATI_MONTHS.map((m) => (
-                  <option key={m.value} value={m.value} className="text-gray-900 font-bold">
-                    {m.label}
-                  </option>
-                ))}
-              </select>
-
-              <select
-                value={selectedYear}
-                onChange={(e) => {
-                  onYearChange(Number(e.target.value));
-                }}
-                className="rounded-lg bg-white/20 border border-white/10 px-3 py-1.5 text-xs font-bold text-white outline-none cursor-pointer hover:bg-white/30 transition-all"
-              >
-                {YEARS.map((y) => (
-                  <option key={y} value={y} className="text-gray-900 font-bold">
-                    {y}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-        </div>
-
-        {/* Worker Info Sub-panel section in soft pink theme */}
-        <div className="rounded-3xl bg-pink-50/50 dark:bg-pink-950/10 p-5 border border-pink-100/30 flex items-center justify-between shadow-sm">
+        {/* Worker Info Sub-panel section in standard theme */}
+        <div className="rounded-3xl bg-teal-50/50 dark:bg-teal-950/10 p-5 border border-teal-100/30 flex items-center justify-between shadow-sm">
           <div className="flex items-center gap-3">
             <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-100 text-2xl shadow-sm">
               🧑‍🔧
             </div>
             <div>
-              <h3 className="text-2xl font-extrabold text-[#c2185b] tracking-tight hover:opacity-90 font-sans transition-all">
+              <h3 className="text-2xl font-extrabold text-teal-600 dark:text-teal-400 tracking-tight hover:opacity-90 font-sans transition-all">
                 {selectedWorker.name}
               </h3>
               <p className="text-xs text-gray-500 dark:text-slate-400 mt-1 font-bold">
@@ -181,7 +141,7 @@ export default function AttendanceView({
           <button
             type="button"
             onClick={() => onSelectWorker(null)}
-            className="flex items-center justify-center gap-1.5 rounded-2xl bg-white border border-[#c2185b] text-[#c2185b] hover:bg-pink-50/20 py-3 text-xs sm:text-sm font-black shadow-sm active:scale-95 transition-all cursor-pointer"
+            className="flex items-center justify-center gap-1.5 rounded-2xl bg-white border border-teal-600 text-teal-600 hover:bg-teal-50/20 py-3 text-xs sm:text-sm font-black shadow-sm active:scale-95 transition-all cursor-pointer"
           >
             📊 બધા સારાંશ
           </button>
@@ -195,14 +155,14 @@ export default function AttendanceView({
           </button>
         </div>
 
-        {/* Sub-tabs segment switcher with pink border */}
-        <div className="rounded-2xl border border-[#c2185b]/30 p-1 flex items-center bg-white dark:bg-slate-900 print:hidden select-none">
+        {/* Sub-tabs segment switcher with teal border */}
+        <div className="rounded-2xl border border-teal-600/30 p-1 flex items-center bg-white dark:bg-slate-900 print:hidden select-none">
           <button
             type="button"
             onClick={() => setActiveSubTab('daily')}
             className={`flex-1 flex items-center justify-center gap-1.5 py-3 text-xs sm:text-sm font-black rounded-xl transition-all cursor-pointer ${
               activeSubTab === 'daily'
-                ? 'bg-[#c2185b] text-white shadow-md'
+                ? 'bg-teal-600 text-white shadow-md'
                 : 'text-gray-500 hover:text-gray-800'
             }`}
           >
@@ -214,7 +174,7 @@ export default function AttendanceView({
             onClick={() => setActiveSubTab('summary')}
             className={`flex-1 flex items-center justify-center gap-1.5 py-3 text-xs sm:text-sm font-black rounded-xl transition-all cursor-pointer ${
               activeSubTab === 'summary'
-                ? 'bg-[#c2185b] text-white shadow-md'
+                ? 'bg-teal-600 text-white shadow-md'
                 : 'text-gray-500 hover:text-gray-800'
             }`}
           >
@@ -226,7 +186,7 @@ export default function AttendanceView({
             onClick={() => setActiveSubTab('yearly')}
             className={`flex-1 flex items-center justify-center gap-1.5 py-3 text-xs sm:text-sm font-black rounded-xl transition-all cursor-pointer ${
               activeSubTab === 'yearly'
-                ? 'bg-[#c2185b] text-white shadow-md'
+                ? 'bg-teal-600 text-white shadow-md'
                 : 'text-gray-500 hover:text-gray-800'
             }`}
           >
@@ -235,20 +195,20 @@ export default function AttendanceView({
         </div>
 
         {/* Active view layout content screen */}
-        <div className="rounded-3xl border border-pink-100/60 bg-white dark:bg-slate-900 p-5 shadow-sm space-y-4">
+        <div className="rounded-3xl border border-teal-100/60 bg-white dark:bg-slate-900 p-5 shadow-sm space-y-4">
           
           {/* TAB 1: DAILY ATTENDANCE ENTRIES */}
           {activeSubTab === 'daily' && (
             <div className="space-y-4">
               <div className="border-b border-gray-100 pb-3 flex items-center justify-between">
-                <h4 className="text-base sm:text-lg font-black text-[#c2185b] font-sans flex items-center gap-1.5">
-                  <span className="text-rose-500 text-sm">🔴</span> દૈનિક નોંધ — {activeMonthLabel} {selectedYear}
+                <h4 className="text-base sm:text-lg font-black text-teal-600 font-sans flex items-center gap-1.5">
+                  <span className="text-teal-500 text-sm">🔴</span> દૈનિક નોંધ — {activeMonthLabel} {selectedYear}
                 </h4>
               </div>
 
               {/* Responsive Click Legends instruction */}
-              <div className="rounded-xl bg-pink-50/20 dark:bg-pink-950/5 p-3 border border-pink-100/20 text-[11px] sm:text-xs font-bold leading-relaxed text-gray-700 dark:text-slate-350 select-none">
-                <span className="text-[#c2185b] font-semibold">ક્લિક કરો:</span>{' '}
+              <div className="rounded-xl bg-teal-50/20 dark:bg-teal-950/5 p-3 border border-teal-100/20 text-[11px] sm:text-xs font-bold leading-relaxed text-gray-700 dark:text-slate-350 select-none">
+                <span className="text-teal-600 font-semibold">ક્લિક કરો:</span>{' '}
                 <span className="text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-100">P = હાજર</span>{' '}
                 <span className="text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-100">o|| = અડધો દિવસ</span>{' '}
                 <span className="text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded border border-rose-100">x = રજા</span>{' '}
@@ -259,18 +219,18 @@ export default function AttendanceView({
               {/* Main Table List */}
               <div className="overflow-x-auto rounded-2xl border border-gray-100 dark:border-slate-800">
                 <table className="w-full border-collapse text-left text-sm text-gray-500 dark:text-slate-400">
-                  <thead className="bg-[#c2185b] text-white text-xs font-black uppercase border-b border-pink-700 select-none">
+                  <thead className="bg-teal-600 text-white text-xs font-black uppercase border-b border-teal-700 select-none">
                     <tr>
-                      <th scope="col" className="px-3 py-3 text-center font-bold w-12">
+                      <th scope="col" className="px-1.5 py-3 text-center font-bold w-10">
                         દિ.
                       </th>
-                      <th scope="col" className="px-3 py-3 text-center w-28">
-                        હાજરી / ઓ.ટી.
+                      <th scope="col" className="px-1.5 py-3 text-center w-[80px] sm:w-28">
+                        હાજરી
                       </th>
-                      <th scope="col" className="px-3 py-3 text-center w-28">
-                        ઉપાડ (₹)
+                      <th scope="col" className="px-1.5 py-3 text-center w-[70px] sm:w-28">
+                        ઉપાડ
                       </th>
-                      <th scope="col" className="px-3 py-3 text-left">
+                      <th scope="col" className="px-1.5 py-3 text-left">
                         નોંધ
                       </th>
                     </tr>
@@ -280,30 +240,30 @@ export default function AttendanceView({
                       const record = currentAttendance[day] || { status: '', upad: 0, note: '' };
                       
                       return (
-                        <tr key={day} className="hover:bg-pink-50/5 transition-colors">
+                        <tr key={day} className="hover:bg-teal-50/5 transition-colors">
                           {/* Day Number */}
-                          <td className="px-3 py-2 text-center">
-                            <span className="inline-flex h-7 w-7 items-center justify-center rounded-full text-xs font-black font-sans bg-gray-100 text-gray-950 dark:bg-slate-800 dark:text-slate-200">
+                          <td className="px-1.5 py-2 text-center">
+                            <span className="inline-flex h-6 w-6 items-center justify-center rounded-full text-xs font-black font-sans bg-gray-100 text-gray-950 dark:bg-slate-800 dark:text-slate-200">
                               {day}
                             </span>
                           </td>
 
                           {/* Interactive Toggle button */}
-                          <td className="px-3 py-2 text-center select-none">
+                          <td className="px-1.5 py-2 text-center select-none">
                             <button
                               type="button"
                               onClick={() => {
                                 const nextStat = getNextStatus(record.status);
                                 onUpdateAttendance(selectedWorker.id, day, 'status', nextStat);
                               }}
-                              className={`w-full max-w-[90px] mx-auto rounded-lg border py-1.5 text-xs font-black shadow-sm transition-all duration-150 active:scale-95 cursor-pointer text-center ${getStatusStyle(record.status)}`}
+                              className={`w-full max-w-[70px] sm:max-w-[90px] mx-auto rounded-lg border py-1 text-xs font-black shadow-sm transition-all duration-150 active:scale-95 cursor-pointer text-center ${getStatusStyle(record.status)}`}
                             >
                               {getShortStatusLabel(record.status)}
                             </button>
                           </td>
 
-                          {/* Upad Amount with pink focus border */}
-                          <td className="px-3 py-2">
+                          {/* Upad Amount with teal focus border */}
+                          <td className="px-1.5 py-2">
                             <input
                               type="number"
                               min="0"
@@ -313,12 +273,12 @@ export default function AttendanceView({
                                 onUpdateAttendance(selectedWorker.id, day, 'upad', val);
                               }}
                               placeholder="0"
-                              className="w-full text-center rounded-lg border border-gray-200 bg-gray-50/40 py-1.5 text-xs font-semibold text-gray-900 outline-none transition-all placeholder:text-gray-300 focus:border-[#c2185b] focus:bg-white dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:focus:border-[#c2185b] dark:focus:bg-slate-900"
+                              className="w-full text-center rounded-lg border border-gray-200 bg-gray-50/40 py-1 text-xs font-semibold text-gray-900 outline-none transition-all placeholder:text-gray-300 focus:border-teal-500 focus:bg-white dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:focus:border-teal-500 dark:focus:bg-slate-900"
                             />
                           </td>
 
-                          {/* Note input with pink focus border */}
-                          <td className="px-3 py-2">
+                          {/* Note input with teal focus border */}
+                          <td className="px-1.5 py-2">
                             <input
                               type="text"
                               value={record.note || ''}
@@ -326,7 +286,7 @@ export default function AttendanceView({
                                 onUpdateAttendance(selectedWorker.id, day, 'note', e.target.value);
                               }}
                               placeholder="નોંધ..."
-                              className="w-full text-left rounded-lg border border-gray-200 bg-gray-50/40 px-2.5 py-1.5 text-xs text-gray-900 outline-none transition-all placeholder:text-gray-400 focus:border-[#c2185b] focus:bg-white dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:border-[#c2185b] dark:focus:bg-slate-900"
+                              className="w-full text-left rounded-lg border border-gray-200 bg-gray-50/40 px-2 py-1 text-xs text-gray-900 outline-none transition-all placeholder:text-gray-400 focus:border-teal-500 focus:bg-white dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:border-teal-500 dark:focus:bg-slate-900"
                             />
                           </td>
                         </tr>
@@ -342,7 +302,7 @@ export default function AttendanceView({
           {activeSubTab === 'summary' && (
             <div className="space-y-4">
               <div className="border-b border-gray-100 pb-3">
-                <h4 className="text-base sm:text-lg font-black text-[#c2185b] font-sans flex items-center gap-1.5">
+                <h4 className="text-base sm:text-lg font-black text-teal-600 font-sans flex items-center gap-1.5">
                   💰 આ માસનો સંપૂર્ણ હિસાબ સારાંશ
                 </h4>
               </div>
@@ -376,13 +336,13 @@ export default function AttendanceView({
                   </div>
                   <div className="flex justify-between items-center text-sm">
                     <span className="text-amber-700 font-bold">કુલ ઉપાડ રકમ (Upad)</span>
-                    <span className="font-black text-[#c2185b]">₹{totals.totalUpad.toLocaleString('gu-IN')}</span>
+                    <span className="font-black text-rose-600">₹{totals.totalUpad.toLocaleString('gu-IN')}</span>
                   </div>
                 </div>
               </div>
 
-              <div className="rounded-3xl bg-pink-100/30 p-5 border border-pink-200/20 text-center space-y-2">
-                <p className="text-xs font-black uppercase text-[#c2185b] tracking-widest">
+              <div className="rounded-3xl bg-teal-100/30 p-5 border border-teal-200/20 text-center space-y-2">
+                <p className="text-xs font-black uppercase text-teal-600 tracking-widest">
                   બાકી ચૂકવવાની રકમ (Payable Balance)
                 </p>
                 <h3 className={`text-3xl font-black ${totals.balance >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
@@ -406,14 +366,14 @@ export default function AttendanceView({
           {activeSubTab === 'yearly' && (
             <div className="space-y-4">
               <div className="border-b border-gray-100 pb-3">
-                <h4 className="text-base sm:text-lg font-black text-[#c2185b] font-sans flex items-center gap-1.5">
+                <h4 className="text-base sm:text-lg font-black text-teal-600 font-sans flex items-center gap-1.5">
                   📅 વર્ષિવાર ખાતું (Yearly Master Sheet - {selectedYear})
                 </h4>
               </div>
 
               <div className="overflow-x-auto rounded-2xl border border-gray-100 dark:border-slate-800">
                 <table className="w-full border-collapse text-left text-sm text-gray-500 dark:text-slate-400">
-                  <thead className="bg-[#c2185b] text-white text-xs font-black">
+                  <thead className="bg-teal-600 text-white text-xs font-black">
                     <tr>
                       <th className="px-4 py-3">મહિનો</th>
                       <th className="px-4 py-3 text-center">હાજર</th>
@@ -430,7 +390,7 @@ export default function AttendanceView({
                       const mTotals = calculateWorkerTotals(monthlyAttendance, selectedWorker.dailyWage, mDays);
 
                       return (
-                        <tr key={m.value} className="hover:bg-pink-50/5">
+                        <tr key={m.value} className="hover:bg-teal-50/5">
                           <td className="px-4 py-2.5 font-bold text-gray-900 dark:text-slate-200">
                             {m.label}
                           </td>
@@ -440,7 +400,7 @@ export default function AttendanceView({
                           <td className="px-4 py-2.5 text-right text-gray-700 dark:text-slate-350">
                             ₹{mTotals.totalEarnings.toLocaleString('gu-IN')}
                           </td>
-                          <td className="px-4 py-2.5 text-right text-[#c2185b] font-medium">
+                          <td className="px-4 py-2.5 text-right text-rose-600 font-medium">
                             ₹{mTotals.totalUpad.toLocaleString('gu-IN')}
                           </td>
                           <td className={`px-4 py-2.5 text-right font-black ${mTotals.balance >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
@@ -472,7 +432,7 @@ export default function AttendanceView({
         </h3>
         <p className="text-xs text-gray-500 mt-1 dark:text-slate-400">
           જે કારીગરનું દૈનિક હાજરીપત્રક અથવા ઉપાડ નોંધવો હોય, તેમના કાર્ડ પર રહેલું{' '}
-          <strong className="text-[#c2185b]">"હાજરી કાર્ડ જુઓ"</strong> બટન દબાવો.
+          <strong className="text-teal-600">"હાજરી કાર્ડ જુઓ"</strong> બટન દબાવો.
         </p>
 
         {/* Local Fast SEARCH box */}
@@ -485,7 +445,7 @@ export default function AttendanceView({
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="કારીગરનું નામ અથવા સાઇટ શોધો..."
-            className="w-full rounded-2xl border border-gray-200 bg-gray-50/50 pl-10 pr-4 py-3 text-sm outline-none transition-all focus:border-[#c2185b] focus:bg-white focus:ring-2 focus:ring-pink-100 dark:border-slate-700 dark:bg-slate-800/60 dark:text-slate-100 dark:focus:border-pink-500 dark:focus:bg-slate-900"
+            className="w-full rounded-2xl border border-gray-200 bg-gray-50/50 pl-10 pr-4 py-3 text-sm outline-none transition-all focus:border-teal-500 focus:bg-white focus:ring-2 focus:ring-teal-100 dark:border-slate-700 dark:bg-slate-800/60 dark:text-slate-100 dark:focus:border-teal-500 dark:focus:bg-slate-900"
           />
         </div>
       </div>
@@ -493,7 +453,7 @@ export default function AttendanceView({
       {/* Empty State */}
       {filteredWorkers.length === 0 ? (
         <div className="rounded-3xl border border-dashed border-gray-200 bg-white py-12 text-center shadow-sm dark:border-slate-800 dark:bg-slate-900">
-          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-pink-50 text-[#c2185b] mb-4">
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-teal-50 text-teal-600 mb-4 dark:bg-slate-800 dark:text-teal-400">
             🔍
           </div>
           <h4 className="text-lg font-bold text-gray-900 font-sans dark:text-slate-100">કોઈ મળેલ કારીગર નથી</h4>
@@ -512,15 +472,15 @@ export default function AttendanceView({
             return (
               <div
                 key={worker.id}
-                className="rounded-3xl border border-pink-100/25 bg-white p-5 shadow-sm hover:shadow-md transition-all flex flex-col justify-between gap-4 dark:border-slate-800 dark:bg-slate-900"
+                className="rounded-3xl border border-teal-100/25 bg-white p-5 shadow-sm hover:shadow-md transition-all flex flex-col justify-between gap-4 dark:border-slate-800 dark:bg-slate-900"
               >
                 <div>
                   <div className="flex items-center gap-3">
-                    <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-pink-50 font-black text-[#c2185b] dark:bg-slate-800 dark:text-pink-400">
+                    <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-teal-50 font-black text-teal-600 dark:bg-slate-800 dark:text-teal-400">
                       {worker.name.charAt(0)}
                     </div>
                     <div>
-                      <h4 className="font-extrabold text-[#c2185b] text-base font-sans dark:text-pink-400">
+                      <h4 className="font-extrabold text-teal-600 text-base font-sans dark:text-teal-400">
                         👷 {worker.name}
                       </h4>
                       <p className="text-xs text-gray-400 mt-0.5 font-bold">
@@ -541,9 +501,9 @@ export default function AttendanceView({
                       <p className="text-[10px] text-emerald-600 font-bold">હાજર</p>
                       <p className="text-sm font-black text-emerald-700 dark:text-emerald-400">{totals.presentDays}</p>
                     </div>
-                    <div className="bg-[#c2185b]/10 p-2 rounded-xl text-center border border-pink-100/10">
-                      <p className="text-[10px] text-[#c2185b] font-bold">ઉપાડ</p>
-                      <p className="text-sm font-black text-[#c2185b]">₹{totals.totalUpad.toLocaleString('gu-IN')}</p>
+                    <div className="bg-rose-50/50 p-2 rounded-xl text-center border border-rose-100/20 dark:bg-rose-950/20">
+                      <p className="text-[10px] text-rose-600 font-bold">ઉપાડ</p>
+                      <p className="text-sm font-black text-rose-750 dark:text-rose-400">₹{totals.totalUpad.toLocaleString('gu-IN')}</p>
                     </div>
                     <div className="bg-purple-50/50 p-2 rounded-xl text-center border border-purple-100/20 dark:bg-purple-950/20">
                       <p className="text-[10px] text-purple-600 font-bold">બાકી</p>
@@ -556,7 +516,7 @@ export default function AttendanceView({
                 <button
                   type="button"
                   onClick={() => onSelectWorker(worker.id)}
-                  className="w-full rounded-2xl bg-[#c2185b] text-white hover:bg-pink-850 py-3 text-xs sm:text-sm font-black shadow-md cursor-pointer text-center select-none active:scale-98 transition-all flex items-center justify-center gap-2"
+                  className="w-full rounded-2xl bg-teal-600 text-white hover:bg-teal-700 py-3 text-xs sm:text-sm font-black shadow-md cursor-pointer text-center select-none active:scale-98 transition-all flex items-center justify-center gap-2"
                 >
                   📋 હાજરી કાર્ડ જુઓ
                 </button>

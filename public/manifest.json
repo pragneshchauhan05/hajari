@@ -1,0 +1,30 @@
+{
+  "name": "હાજરીપત્રક અને ઉપાડ હિસાબ",
+  "short_name": "હાજરી",
+  "description": "કન્સ્ટ્રક્શન સાઇટ અને કારીગરોનું હાજરીપત્રક અને ઉપાડ હિસાબ રાખવા માટેની એપ",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f8fafc",
+  "theme_color": "#0d9488",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icon.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

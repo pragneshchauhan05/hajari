@@ -30,9 +30,6 @@ export default function Navbar({
           <div>
             <h1 className="text-2xl font-bold tracking-tight text-teal-950 font-sans flex items-center gap-1.5 dark:text-teal-400">
               હાજરી
-              <span className="hidden text-xs font-normal text-teal-600 sm:inline-block bg-teal-50 px-2 py-0.5 rounded-full border border-teal-100 dark:bg-slate-800 dark:text-teal-400 dark:border-slate-700">
-                મેનેજર
-              </span>
             </h1>
           </div>
         </div>

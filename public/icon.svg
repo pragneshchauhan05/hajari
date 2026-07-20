@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <!-- Background Gradient -->
+    <linearGradient id="bg-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0f766e" />
+      <stop offset="100%" stop-color="#0d9488" />
+    </linearGradient>
+    <!-- Card Shadow -->
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="12" stdDeviation="16" flood-color="#042f2e" flood-opacity="0.35" />
+    </filter>
+  </defs>
+
+  <!-- Base Rounded Container (App Shape) -->
+  <rect width="512" height="512" rx="112" fill="url(#bg-grad)" />
+
+  <!-- Clipboard / Card Graphic with shadow -->
+  <g filter="url(#shadow)">
+    <!-- Clipboard body -->
+    <rect x="128" y="144" width="256" height="288" rx="24" fill="#ffffff" />
+    
+    <!-- Clipboard Header Clip -->
+    <rect x="208" y="112" width="96" height="48" rx="12" fill="#e2e8f0" />
+    <rect x="224" y="124" width="64" height="12" rx="6" fill="#94a3b8" />
+  </g>
+
+  <!-- Attendance Indicators / Decorative Lines -->
+  <!-- Line 1: Present (Emerald) -->
+  <rect x="168" y="208" width="100" height="14" rx="7" fill="#64748b" />
+  <circle cx="320" cy="215" r="14" fill="#10b981" />
+  <!-- Checkmark inside Emerald Circle -->
+  <path d="M313 215 l5 5 l8 -10" fill="none" stroke="#ffffff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
+
+  <!-- Line 2: Half Day (Amber) -->
+  <rect x="168" y="268" width="100" height="14" rx="7" fill="#64748b" />
+  <circle cx="320" cy="275" r="14" fill="#f59e0b" />
+  <path d="M312 275 h16" fill="none" stroke="#ffffff" stroke-width="3" stroke-linecap="round" />
+
+  <!-- Line 3: Present (Emerald) -->
+  <rect x="168" y="328" width="100" height="14" rx="7" fill="#64748b" />
+  <circle cx="320" cy="335" r="14" fill="#10b981" />
+  <!-- Checkmark inside Emerald Circle -->
+  <path d="M313 335 l5 5 l8 -10" fill="none" stroke="#ffffff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
+
+  <!-- Line 4: Present (Emerald) -->
+  <rect x="168" y="388" width="100" height="14" rx="7" fill="#64748b" />
+  <circle cx="320" cy="395" r="14" fill="#10b981" />
+  <!-- Checkmark inside Emerald Circle -->
+  <path d="M313 395 l5 5 l8 -10" fill="none" stroke="#ffffff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
+
+  <!-- Hard Hat overlay at bottom right corner of clipboard -->
+  <path d="M330 380 C330 350, 410 350, 410 380 Z" fill="#f59e0b" filter="url(#shadow)" />
+  <rect x="320" y="380" width="100" height="8" rx="4" fill="#d97706" />
+</svg>

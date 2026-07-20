@@ -1,8 +1,15 @@
 <!doctype html>
 <html lang="gu">
   <head>
-    <meta name="google-site-verification" content="cvbmGkv9G0YXhoCj8cDFmukQ5OdCoHp50eicCZwIdaA" />
+    <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- PWA Meta Tags & Links -->
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="theme-color" content="#0d9488" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="હાજરી" />
+    <link rel="apple-touch-icon" href="/icon.svg" />
     <title>હાજરી - Attendance Management Dashboard</title>
     <!-- Font Awesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" integrity="sha512-iecdLmaskl7CVkqkXNQ/ZH/XLlvWZOJyj7Yy7tcenmpD1ypASozpmT/E0iPtmFIB46ZmdtAc9eNBvH0H/ZpiBw==" crossorigin="anonymous" referrerpolicy="no-referrer" />
@@ -14,6 +21,20 @@
   <body class="bg-gray-50 text-gray-800 antialiased selection:bg-teal-500 selection:text-white">
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
+    <!-- Service Worker Registration -->
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js')
+            .then((reg) => {
+              console.log('PWA Service Worker registered with scope:', reg.scope);
+            })
+            .catch((err) => {
+              console.error('PWA Service Worker registration failed:', err);
+            });
+        });
+      }
+    </script>
   </body>
 </html>
 
