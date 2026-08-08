@@ -1,6 +1,6 @@
 import React from 'react';
 import { Worker, MonthlyWorkerAttendance } from '../types';
-import { calculateGlobalSummary, calculateWorkerTotals, getDaysInMonth, GUJARATI_MONTHS } from '../utils/attendanceUtils';
+import { calculateGlobalSummary, calculateWorkerTotals, getDaysInMonth, GUJARATI_MONTHS, isWorkerActiveInMonth } from '../utils/attendanceUtils';
 
 interface ReportsViewProps {
   workers: Worker[];
@@ -22,6 +22,13 @@ export default function ReportsView({
   const stats = calculateGlobalSummary(workers, attendanceDB, selectedYear, selectedMonth);
   const activeMonthLabel = GUJARATI_MONTHS.find((m) => m.value === selectedMonth)?.label || '';
   const daysCount = getDaysInMonth(selectedYear, selectedMonth);
+
+  // Include workers who are active in the selected month OR have recorded attendance for that month
+  const reportWorkers = workers.filter((w) => {
+    const key = `${w.id}_${selectedYear}_${selectedMonth}`;
+    const hasData = attendanceDB[key] && Object.keys(attendanceDB[key]).length > 0;
+    return isWorkerActiveInMonth(w, selectedMonth, selectedYear) || hasData;
+  });
 
   // Format currency
   const formatCurrency = (val: number) => {
@@ -120,9 +127,9 @@ export default function ReportsView({
           બધા કારીગરોનું વિગતવાર માસિક પત્રક
         </h3>
 
-        {workers.length === 0 ? (
+        {reportWorkers.length === 0 ? (
           <div className="py-8 text-center text-gray-400 dark:text-slate-500">
-            હજુ સુધી કોઈ કારીગરો પંજીકૃત કરેલ નથી. કૃપા કરીને કારીગરો સેક્શનમાં જઈને નવા કારીગર ઉમેરો.
+            આ મહિના માટે કોઈ ચાલુ કારીગરો પંજીકૃત કરેલ નથી. કૃપા કરીને કારીગરો સેક્શનમાં જઈને નવા કારીગર ઉમેરો.
           </div>
         ) : (
           <div className="overflow-x-auto rounded-xl border border-gray-100 dark:border-slate-800">
@@ -165,7 +172,7 @@ export default function ReportsView({
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100 bg-white dark:divide-slate-800 dark:bg-slate-900">
-                {workers.map((worker) => {
+                {reportWorkers.map((worker) => {
                   const key = `${worker.id}_${selectedYear}_${selectedMonth}`;
                   const currentAttendance = attendanceDB[key] || {};
                   const totals = calculateWorkerTotals(currentAttendance, worker.dailyWage, daysCount);
@@ -310,7 +317,7 @@ export default function ReportsView({
                 </tr>
               </thead>
               <tbody>
-                {workers.map((w) => {
+                {reportWorkers.map((w) => {
                   const k = `${w.id}_${selectedYear}_${selectedMonth}`;
                   const att = attendanceDB[k] || {};
                   const t = calculateWorkerTotals(att, w.dailyWage, daysCount);
@@ -341,7 +348,7 @@ export default function ReportsView({
             </h3>
           )}
 
-          {workers
+          {reportWorkers
             .filter((w) => printTarget === 'all' || w.id === printTarget)
             .map((worker) => {
               const k = `${worker.id}_${selectedYear}_${selectedMonth}`;

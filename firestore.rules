@@ -16,7 +16,11 @@ service cloud.firestore {
     }
 
     function isAdmin() {
-      return isSignedIn() && request.auth.token.email == 'pragneshc517@gmail.com';
+      return isSignedIn() && request.auth.token.email_verified == true && request.auth.token.email == 'pragneshc517@gmail.com';
+    }
+
+    function isValidUserEmail() {
+      return !('userEmail' in request.resource.data) || request.resource.data.userEmail == request.auth.token.email;
     }
 
     function isValidId(id) {
@@ -28,6 +32,7 @@ service cloud.firestore {
       allow read: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
       
       allow create: if (isAdmin() || (isSignedIn() && request.resource.data.userId == request.auth.uid))
+        && isValidUserEmail()
         && isValidId(workerId) 
         && request.resource.data.name is string 
         && request.resource.data.name.size() <= 150
@@ -42,6 +47,7 @@ service cloud.firestore {
         isSignedIn() 
         && resource.data.userId == request.auth.uid
         && request.resource.data.userId == request.auth.uid
+        && isValidUserEmail()
         && request.resource.data.name is string 
         && request.resource.data.name.size() <= 150
         && request.resource.data.village is string 
@@ -60,6 +66,7 @@ service cloud.firestore {
       allow read: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
       
       allow create: if (isAdmin() || (isSignedIn() && request.resource.data.userId == request.auth.uid))
+        && isValidUserEmail()
         && isValidId(attendanceId) 
         && request.resource.data.workerId is string
         && request.resource.data.year is number
@@ -70,6 +77,7 @@ service cloud.firestore {
         isSignedIn() 
         && resource.data.userId == request.auth.uid
         && request.resource.data.userId == request.auth.uid
+        && isValidUserEmail()
         && request.resource.data.records is map
       );
 

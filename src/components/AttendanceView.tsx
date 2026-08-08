@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Worker, MonthlyWorkerAttendance, AttendanceStatus } from '../types';
-import { getDaysInMonth, calculateWorkerTotals, GUJARATI_MONTHS, YEARS } from '../utils/attendanceUtils';
+import { getDaysInMonth, calculateWorkerTotals, GUJARATI_MONTHS, YEARS, isWorkerActiveInMonth } from '../utils/attendanceUtils';
 
 interface AttendanceViewProps {
   workers: Worker[];
@@ -88,8 +88,9 @@ export default function AttendanceView({
   const activeMonthLabel = GUJARATI_MONTHS.find((m) => m.value === selectedMonth)?.label || '';
   const daysArray = Array.from({ length: daysCount }, (_, i) => i + 1);
 
-  // Filter workers based on search query
+  // Filter workers based on search query and month active status
   const filteredWorkers = workers.filter((w) => {
+    if (!isWorkerActiveInMonth(w, selectedMonth, selectedYear)) return false;
     const query = searchQuery.toLowerCase().trim();
     return (
       w.name.toLowerCase().includes(query) ||

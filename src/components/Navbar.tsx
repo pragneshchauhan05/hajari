@@ -18,24 +18,51 @@ export default function Navbar({
   isDarkMode,
   onToggleDarkMode,
 }: NavbarProps) {
+  const now = new Date();
+  const currentActualMonth = now.getMonth() + 1;
+  const currentActualYear = now.getFullYear();
+  const isCurrentMonthSelected = selectedMonth === currentActualMonth && selectedYear === currentActualYear;
+
   return (
     <header className="sticky top-0 z-40 w-full border-b border-teal-100 bg-white/95 backdrop-blur-md shadow-sm transition-colors duration-200 dark:border-slate-800 dark:bg-slate-900/95">
-      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
+      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-3 sm:px-6 lg:px-8">
         
         {/* Logo and App Title */}
         <div className="flex items-center space-x-1.5 sm:space-x-3">
           <div className="flex h-8 w-8 sm:h-10 sm:w-10 items-center justify-center rounded-xl bg-gradient-to-tr from-teal-500 to-emerald-400 text-white shadow-md shadow-teal-100 transition-transform hover:scale-105 dark:shadow-none">
             <i className="fa-solid fa-calendar-check text-base sm:text-xl"></i>
           </div>
-          <div>
+          <div className="flex items-center gap-1.5">
             <h1 className="text-lg sm:text-2xl font-black tracking-tight text-teal-950 font-sans flex items-center gap-1.5 dark:text-teal-400">
               હાજરી
             </h1>
+            {isCurrentMonthSelected ? (
+              <span className="hidden sm:inline-flex items-center gap-1 rounded-md bg-emerald-50 border border-emerald-200/80 px-1.5 py-0.5 text-[10px] font-extrabold text-emerald-700 dark:bg-emerald-950/40 dark:border-emerald-800/80 dark:text-emerald-400">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                ચાલુ મહિનો
+              </span>
+            ) : null}
           </div>
         </div>
 
         {/* Month and Year Selectors + Dark mode Toggle */}
-        <div className="flex items-center space-x-1 sm:space-x-4">
+        <div className="flex items-center space-x-1 sm:space-x-3">
+          {/* Quick Return to Current Month Button if an older/future month is picked */}
+          {!isCurrentMonthSelected && (
+            <button
+              type="button"
+              onClick={() => {
+                onMonthChange(currentActualMonth);
+                onYearChange(currentActualYear);
+              }}
+              className="flex items-center gap-1 rounded-lg bg-teal-600 px-2 py-1 text-[11px] sm:text-xs font-bold text-white shadow-sm hover:bg-teal-700 transition-all active:scale-95 cursor-pointer dark:bg-teal-500 dark:hover:bg-teal-400"
+              title="ચાલુ વર્તમાન મહિના પર પાછા જાઓ"
+            >
+              <i className="fa-solid fa-clock-rotate-left text-[10px]"></i>
+              <span>ચાલુ મહિનો</span>
+            </button>
+          )}
+
           {/* Month Selector */}
           <div className="flex items-center space-x-1">
             <label className="hidden text-xs font-medium text-gray-500 md:block dark:text-gray-400" htmlFor="month-select">

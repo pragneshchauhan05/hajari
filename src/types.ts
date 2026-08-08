@@ -4,6 +4,7 @@ export interface Worker {
   village: string;
   dailyWage: number;
   mobile?: string;
+  inactiveMonths?: string[]; // Array of "YYYY-M" or "YYYY_M" e.g. ["2026-8"] indicating month deactivations
 }
 
 export type AttendanceStatus = 'P' | 'A' | 'H' | 'O' | 'D' | ''; // P: Present (હાજર), A: Absent (ગેરહાજર), H: Half Day (અડધો દિવસ), O: Overtime (ઓવર ટાઈમ), D: Double Overtime (ડબલ ઓવર ટાઈમ), '': Unmarked (નોંધાયેલ નથી)

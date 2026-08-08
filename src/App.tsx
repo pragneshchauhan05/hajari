@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import Navbar from './components/Navbar';
 import Sidebar from './components/Sidebar';
 import WorkerModal from './components/WorkerModal';
+import DeleteWorkerModal from './components/DeleteWorkerModal';
 import DashboardView from './components/DashboardView';
 import WorkersView from './components/WorkersView';
 import AttendanceView from './components/AttendanceView';
@@ -66,16 +67,78 @@ export default function App() {
     return {};
   });
 
-  // Default to June (6) and Year (2026) based on metadata timestamp
+  // Helper to get current actual real-time month and year
+  const getTodayMonthYear = () => {
+    const now = new Date();
+    return {
+      month: now.getMonth() + 1,
+      year: now.getFullYear(),
+    };
+  };
+
+  // Automatically default to current month & year, or switch when a new month starts
   const [selectedMonth, setSelectedMonth] = useState<number>(() => {
-    const saved = localStorage.getItem('hazari_selected_month');
-    return saved ? Number(saved) : 6;
+    const { month, year } = getTodayMonthYear();
+    const savedMonth = localStorage.getItem('hazari_selected_month');
+    const lastActivePeriod = localStorage.getItem('hazari_active_period'); // e.g. "2026-8"
+    const currentPeriod = `${year}-${month}`;
+
+    // If a new month has started, or no active period was tracked yet: auto switch to current month!
+    if (!lastActivePeriod || lastActivePeriod !== currentPeriod) {
+      localStorage.setItem('hazari_active_period', currentPeriod);
+      localStorage.setItem('hazari_selected_month', month.toString());
+      localStorage.setItem('hazari_selected_year', year.toString());
+      return month;
+    }
+
+    return savedMonth ? Number(savedMonth) : month;
   });
 
   const [selectedYear, setSelectedYear] = useState<number>(() => {
-    const saved = localStorage.getItem('hazari_selected_year');
-    return saved ? Number(saved) : 2026;
+    const { month, year } = getTodayMonthYear();
+    const savedYear = localStorage.getItem('hazari_selected_year');
+    const lastActivePeriod = localStorage.getItem('hazari_active_period');
+    const currentPeriod = `${year}-${month}`;
+
+    if (!lastActivePeriod || lastActivePeriod !== currentPeriod) {
+      return year;
+    }
+
+    return savedYear ? Number(savedYear) : year;
   });
+
+  // Automatically update selected month & year if a new calendar month starts while app is running / opened
+  useEffect(() => {
+    const checkAndAutoSwitchMonth = () => {
+      const { month, year } = getTodayMonthYear();
+      const currentPeriod = `${year}-${month}`;
+      const lastActivePeriod = localStorage.getItem('hazari_active_period');
+
+      if (!lastActivePeriod || lastActivePeriod !== currentPeriod) {
+        setSelectedMonth(month);
+        setSelectedYear(year);
+        localStorage.setItem('hazari_active_period', currentPeriod);
+        localStorage.setItem('hazari_selected_month', month.toString());
+        localStorage.setItem('hazari_selected_year', year.toString());
+      }
+    };
+
+    checkAndAutoSwitchMonth();
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        checkAndAutoSwitchMonth();
+      }
+    };
+
+    window.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', checkAndAutoSwitchMonth);
+
+    return () => {
+      window.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', checkAndAutoSwitchMonth);
+    };
+  }, []);
 
   const [activeTab, setActiveTab] = useState<ActiveTab>('dashboard');
   const [selectedWorkerId, setSelectedWorkerId] = useState<string | null>(null);
@@ -132,6 +195,7 @@ export default function App() {
   // Worker Modal trigger state
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingWorker, setEditingWorker] = useState<Worker | null>(null);
+  const [deletingWorker, setDeletingWorker] = useState<Worker | null>(null);
 
   // Sync to local storage
   useEffect(() => {
@@ -270,10 +334,14 @@ export default function App() {
         });
       }
     } catch (err: any) {
-      console.error(err);
-      if (err.message?.includes('popup-closed-by-user')) {
+      if (err.code === 'auth/popup-closed-by-user' || err.message?.includes('popup-closed-by-user')) {
         setStatusMessage({
-          text: 'સિંક કરવા માટે કનેક્શન વિન્ડો અકાળે બંધ થઈ હતી. "Open in New Tab" માં ચલાવો જેથી પોપઅપ બ્લોક ન થાય.',
+          text: 'લૉગ-ઈન વિન્ડો બંધ કરવામાં આવી હતી.',
+          type: 'info',
+        });
+      } else if (err.code === 'auth/network-request-failed' || err.message?.includes('network-request-failed')) {
+        setStatusMessage({
+          text: 'નેટવર્ક ક્ષતિ: પોપ-અપ કે નેટવર્ક કનેક્શન ચકાસો. અથવા "Open in New Tab" માં ચલાવો જેથી પોપઅપ બ્લોક ન થાય.',
           type: 'info',
         });
       } else {
@@ -364,25 +432,57 @@ export default function App() {
     setEditingWorker(null);
   };
 
-  const handleDeleteWorker = (id: string) => {
-    const confirmDelete = window.confirm('શું તમે ખરેખર આ કારીગરને રદ કરવા માંગો છો? આનાથી તેમની હાજરીનો રેકોર્ડ પણ નીકળી જશે.');
-    if (confirmDelete) {
-      setWorkers((prev) => prev.filter((w) => w.id !== id));
-      if (selectedWorkerId === id) {
-        setSelectedWorkerId(null);
-      }
-      
-      // Clean up attendance records for this worker in db keys
-      setAttendanceDB((prev) => {
-        const copy = { ...prev };
-        Object.keys(copy).forEach((key) => {
-          if (key.startsWith(`${id}_`)) {
-            delete copy[key];
+  const handleDeactivateWorkerForMonth = (workerId: string, month: number, year: number) => {
+    const periodKey = `${year}-${month}`;
+    setWorkers((prev) =>
+      prev.map((w) => {
+        if (w.id === workerId) {
+          const existing = w.inactiveMonths || [];
+          if (!existing.includes(periodKey)) {
+            return { ...w, inactiveMonths: [...existing, periodKey] };
           }
-        });
-        return copy;
-      });
+        }
+        return w;
+      })
+    );
+    if (selectedWorkerId === workerId) {
+      setSelectedWorkerId(null);
     }
+  };
+
+  const handleReactivateWorkerForMonth = (workerId: string, month: number, year: number) => {
+    const periodKey1 = `${year}-${month}`;
+    const periodKey2 = `${year}_${month}`;
+    setWorkers((prev) =>
+      prev.map((w) => {
+        if (w.id === workerId) {
+          const existing = w.inactiveMonths || [];
+          return {
+            ...w,
+            inactiveMonths: existing.filter((k) => k !== periodKey1 && k !== periodKey2),
+          };
+        }
+        return w;
+      })
+    );
+  };
+
+  const handleDeleteWorkerPermanently = (id: string) => {
+    setWorkers((prev) => prev.filter((w) => w.id !== id));
+    if (selectedWorkerId === id) {
+      setSelectedWorkerId(null);
+    }
+    
+    // Clean up attendance records for this worker in db keys
+    setAttendanceDB((prev) => {
+      const copy = { ...prev };
+      Object.keys(copy).forEach((key) => {
+        if (key.startsWith(`${id}_`)) {
+          delete copy[key];
+        }
+      });
+      return copy;
+    });
   };
 
   // Manage Attendance inline modification
@@ -485,6 +585,8 @@ export default function App() {
             {activeTab === 'workers' && (
               <WorkersView
                 workers={workers}
+                selectedMonth={selectedMonth}
+                selectedYear={selectedYear}
                 onOpenAddModal={() => {
                   setEditingWorker(null);
                   setIsModalOpen(true);
@@ -493,7 +595,8 @@ export default function App() {
                   setEditingWorker(w);
                   setIsModalOpen(true);
                 }}
-                onDeleteWorker={handleDeleteWorker}
+                onRequestDeleteWorker={(w) => setDeletingWorker(w)}
+                onReactivateWorker={handleReactivateWorkerForMonth}
                 onViewWorkerAttendance={handleViewWorkerAttendance}
               />
             )}
@@ -546,6 +649,17 @@ export default function App() {
         onSave={handleSaveModal}
         initialData={editingWorker}
         workers={workers}
+      />
+
+      {/* Worker Deactivation / Deletion Selection Modal */}
+      <DeleteWorkerModal
+        isOpen={Boolean(deletingWorker)}
+        worker={deletingWorker}
+        selectedMonth={selectedMonth}
+        selectedYear={selectedYear}
+        onClose={() => setDeletingWorker(null)}
+        onDeactivateForMonth={handleDeactivateWorkerForMonth}
+        onDeletePermanently={handleDeleteWorkerPermanently}
       />
     </div>
   );

@@ -81,8 +81,8 @@ export const initAuth = (
     } else {
       try {
         await signInAnonymously(auth);
-      } catch (err) {
-        console.error('Seamless anonymous sign-in failed:', err);
+      } catch (err: any) {
+        console.warn('Anonymous sign-in unavailable:', err?.message || err);
         if (onAuthFailure) onAuthFailure();
       }
     }
@@ -95,7 +95,13 @@ export const googleSignIn = async (): Promise<User | null> => {
     const result = await signInWithPopup(auth, provider);
     return result.user;
   } catch (error: any) {
-    console.error('Sign in error:', error);
+    if (error?.code === 'auth/popup-closed-by-user') {
+      console.warn('Google sign in popup closed by user.');
+    } else if (error?.code === 'auth/network-request-failed') {
+      console.warn('Google sign in network request failed.');
+    } else {
+      console.warn('Google sign in error:', error?.message || error);
+    }
     throw error;
   }
 };
@@ -149,6 +155,7 @@ export const backupToFirestore = async (
         village: worker.village,
         dailyWage: worker.dailyWage,
         mobile: worker.mobile || '',
+        inactiveMonths: worker.inactiveMonths || [],
         userId: userId,
         userEmail: userEmail || '',
         updatedAt: new Date().toISOString()
@@ -218,6 +225,7 @@ export const restoreFromFirestore = async (
           village: d.village,
           dailyWage: d.dailyWage,
           mobile: d.mobile || '',
+          inactiveMonths: Array.isArray(d.inactiveMonths) ? d.inactiveMonths : [],
         });
       }
     });
