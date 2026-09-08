@@ -10,6 +10,7 @@ interface WorkersViewProps {
   onOpenEditModal: (worker: Worker) => void;
   onRequestDeleteWorker: (worker: Worker) => void;
   onReactivateWorker: (workerId: string, month: number, year: number) => void;
+  onRestoreDeletedWorker?: (workerId: string) => void;
   onViewWorkerAttendance: (id: string) => void;
 }
 
@@ -21,16 +22,19 @@ export default function WorkersView({
   onOpenEditModal,
   onRequestDeleteWorker,
   onReactivateWorker,
+  onRestoreDeletedWorker,
   onViewWorkerAttendance,
 }: WorkersViewProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [showInactiveList, setShowInactiveList] = useState(false);
+  const [showDeletedList, setShowDeletedList] = useState(false);
 
   const monthLabel = GUJARATI_MONTHS.find((m) => m.value === selectedMonth)?.label || '';
 
-  // Separate active workers vs inactive workers for the currently selected month
-  const activeWorkers = workers.filter((w) => isWorkerActiveInMonth(w, selectedMonth, selectedYear));
-  const inactiveWorkers = workers.filter((w) => !isWorkerActiveInMonth(w, selectedMonth, selectedYear));
+  // Separate active workers vs inactive workers for the currently selected month (excluding deleted workers)
+  const activeWorkers = workers.filter((w) => !w.isDeleted && isWorkerActiveInMonth(w, selectedMonth, selectedYear));
+  const inactiveWorkers = workers.filter((w) => !w.isDeleted && !isWorkerActiveInMonth(w, selectedMonth, selectedYear));
+  const deletedWorkers = workers.filter((w) => w.isDeleted === true);
 
   // Local filter for active workers
   const filteredActiveWorkers = activeWorkers.filter((w) => {
@@ -44,6 +48,16 @@ export default function WorkersView({
 
   // Local filter for inactive workers
   const filteredInactiveWorkers = inactiveWorkers.filter((w) => {
+    const query = searchQuery.toLowerCase();
+    return (
+      w.name.toLowerCase().includes(query) ||
+      w.village.toLowerCase().includes(query) ||
+      (w.mobile && w.mobile.toLowerCase().includes(query))
+    );
+  });
+
+  // Local filter for deleted workers
+  const filteredDeletedWorkers = deletedWorkers.filter((w) => {
     const query = searchQuery.toLowerCase();
     return (
       w.name.toLowerCase().includes(query) ||
@@ -235,6 +249,79 @@ export default function WorkersView({
                     >
                       <i className="fa-solid fa-trash-can text-xs"></i>
                     </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Deleted / Archived Workers Section */}
+      {deletedWorkers.length > 0 && (
+        <div className="rounded-2xl border border-gray-200 bg-gray-50/80 p-5 dark:border-slate-800 dark:bg-slate-900/60">
+          <button
+            type="button"
+            onClick={() => setShowDeletedList((prev) => !prev)}
+            className="flex w-full items-center justify-between text-left cursor-pointer select-none"
+          >
+            <div className="flex items-center gap-2.5">
+              <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-gray-200 text-gray-700 font-black text-xs dark:bg-slate-800 dark:text-slate-300">
+                {deletedWorkers.length}
+              </span>
+              <div>
+                <h4 className="text-sm font-extrabold text-gray-800 dark:text-slate-200 font-sans">
+                  કાયમી રદ કરેલા કારીગરો (આર્કાઇવ્ડ)
+                </h4>
+                <p className="text-[11px] text-gray-500 dark:text-slate-400">
+                  આ કારીગરો ચાલુ લિસ્ટમાંથી દૂર છે, પરંતુ તેમનો અગાઉનો તમામ જૂનો હાજરી અને ઉપાડનો હિસાબ સુરક્ષિત છે.
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-1.5 text-xs font-bold text-gray-600 dark:text-slate-400">
+              <span>{showDeletedList ? 'બંધ કરો' : 'બતાવો'}</span>
+              <i className={`fa-solid ${showDeletedList ? 'fa-chevron-up' : 'fa-chevron-down'}`}></i>
+            </div>
+          </button>
+
+          {showDeletedList && (
+            <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4 border-t border-gray-200/80 pt-4 dark:border-slate-800">
+              {filteredDeletedWorkers.map((worker) => (
+                <div
+                  key={worker.id}
+                  className="flex items-center justify-between rounded-xl bg-white p-3.5 border border-gray-200 shadow-sm dark:bg-slate-900 dark:border-slate-800"
+                >
+                  <div>
+                    <h5 className="font-bold text-gray-700 text-sm dark:text-slate-200">
+                      👤 {worker.name}
+                    </h5>
+                    <p className="text-xs text-gray-400 dark:text-slate-500 mt-0.5">
+                      🏗️ {worker.village} · ₹{worker.dailyWage}/દિવસ
+                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => onViewWorkerAttendance(worker.id)}
+                      className="flex items-center gap-1 rounded-lg bg-teal-50 hover:bg-teal-100 text-teal-700 px-2.5 py-1.5 text-xs font-bold transition-all dark:bg-teal-950/40 dark:text-teal-400"
+                      title="જૂની હાજરી જુઓ"
+                    >
+                      <i className="fa-solid fa-calendar-days text-xs"></i>
+                      <span>હિસાબ જુઓ</span>
+                    </button>
+
+                    {onRestoreDeletedWorker && (
+                      <button
+                        type="button"
+                        onClick={() => onRestoreDeletedWorker(worker.id)}
+                        className="flex items-center gap-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white px-2.5 py-1.5 text-xs font-bold transition-all active:scale-95"
+                        title="ફરીથી ચાલુ કારીગરોમાં પાછા ઉમેરો"
+                      >
+                        <i className="fa-solid fa-rotate-left text-xs"></i>
+                        <span>પુનઃ સક્રિય કરો</span>
+                      </button>
+                    )}
                   </div>
                 </div>
               ))}

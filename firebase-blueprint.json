@@ -25,6 +25,10 @@
           "type": "number",
           "description": "Daily wage rate for the worker"
         },
+        "isDeleted": {
+          "type": "boolean",
+          "description": "Indicates if the worker was deleted from active roster while keeping old records"
+        },
         "userId": {
           "type": "string",
           "description": "Firebase Auth UID of the owner"

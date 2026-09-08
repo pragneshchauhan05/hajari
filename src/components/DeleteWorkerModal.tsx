@@ -121,11 +121,16 @@ export default function DeleteWorkerModal({
               className="mt-0.5 h-4 w-4 text-rose-600 focus:ring-rose-500"
             />
             <div className="flex-1">
-              <span className="text-sm font-extrabold text-rose-950 dark:text-rose-300">
-                સંપૂર્ણ કાયમી માટે ડિલીટ કરો (બધા મહિનામાંથી)
-              </span>
-              <p className="mt-1 text-xs text-gray-500 dark:text-slate-400 leading-relaxed">
-                આ કારીગર અને તેમનો <strong className="text-rose-600 dark:text-rose-400">તમામ જૂનો હિસાબ કાયમ માટે ડિલીટ</strong> થશે.
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-extrabold text-rose-950 dark:text-rose-300">
+                  કાયમી માટે ડિલીટ કરો (ચાલુ લિસ્ટમાંથી દૂર કરો)
+                </span>
+                <span className="rounded-md bg-emerald-100 px-2 py-0.5 text-[10px] font-black text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+                  જૂનો ડેટા સુરક્ષિત રહેશે
+                </span>
+              </div>
+              <p className="mt-1 text-xs text-gray-600 dark:text-slate-400 leading-relaxed">
+                આ કારીગર ચાલુ લિસ્ટમાંથી નીકળી જશે, પરંતુ <strong className="text-emerald-700 dark:text-emerald-400">તેમનો અગાઉનો તમામ જૂનો હાજરી અને ઉપાડનો હિસાબ કાયમ માટે સચવાયેલો રહેશે</strong>.
               </p>
             </div>
           </label>

@@ -30,24 +30,14 @@ export default function App() {
   const [workers, setWorkers] = useState<Worker[]>(() => {
     const saved = localStorage.getItem('hazari_workers');
     if (saved) {
-      const parsed = JSON.parse(saved) as Worker[];
-      // Permanently filter out the previous demo/example workers
-      return parsed.filter((w) => {
-        const isDemo =
-          w.id === 'worker-1' ||
-          w.id === 'worker-2' ||
-          w.id === 'worker-3' ||
-          w.name === 'હસમુખભાઈ' ||
-          w.name === 'રમેશભાઈ' ||
-          w.name === 'મુકેશભાઈ' ||
-          w.name === 'હસમુખ' ||
-          w.name === 'રમેશ' ||
-          w.name === 'મુકેશ' ||
-          w.name === 'Hasmukhbhai' ||
-          w.name === 'Rameshbhai' ||
-          w.name === 'Mukeshbhai';
-        return !isDemo;
-      });
+      try {
+        const parsed = JSON.parse(saved) as Worker[];
+        // Only exclude initial mock demo IDs, never filter out user workers by name
+        return parsed.filter((w) => w.id !== 'demo-worker-1' && w.id !== 'demo-worker-2');
+      } catch (e) {
+        console.error('Error parsing local workers:', e);
+        return [];
+      }
     }
     return [];
   });
@@ -55,14 +45,19 @@ export default function App() {
   const [attendanceDB, setAttendanceDB] = useState<Record<string, MonthlyWorkerAttendance>>(() => {
     const saved = localStorage.getItem('hazari_attendance_db');
     if (saved) {
-      const parsed = JSON.parse(saved) as Record<string, MonthlyWorkerAttendance>;
-      const filtered: Record<string, MonthlyWorkerAttendance> = {};
-      Object.keys(parsed).forEach((key) => {
-        if (!key.startsWith('worker-1_') && !key.startsWith('worker-2_') && !key.startsWith('worker-3_')) {
-          filtered[key] = parsed[key];
-        }
-      });
-      return filtered;
+      try {
+        const parsed = JSON.parse(saved) as Record<string, MonthlyWorkerAttendance>;
+        const filtered: Record<string, MonthlyWorkerAttendance> = {};
+        Object.keys(parsed).forEach((key) => {
+          if (!key.startsWith('demo-worker-1_') && !key.startsWith('demo-worker-2_')) {
+            filtered[key] = parsed[key];
+          }
+        });
+        return filtered;
+      } catch (e) {
+        console.error('Error parsing local attendance DB:', e);
+        return {};
+      }
     }
     return {};
   });
@@ -270,15 +265,24 @@ export default function App() {
     setHasLocalChanges(true);
   }, [workers, attendanceDB]);
 
-  // Check if user has cloud data on login
+  // Check if user has cloud data on login / startup and auto-restore if local state is empty
   useEffect(() => {
     const checkCloudData = async () => {
       if (!user) return;
       try {
         const data = await restoreFromFirestore(user.uid);
         if (data && (data.workers.length > 0 || Object.keys(data.attendanceDB).length > 0)) {
-          // Only show prompt if local changes are false
-          if (!hasLocalChanges) {
+          // If local storage currently has NO workers, automatically restore cloud data
+          if (workers.length === 0) {
+            ignoreNextChangeRef.current = true;
+            setWorkers(data.workers);
+            setAttendanceDB(data.attendanceDB);
+            setHasLocalChanges(false);
+            setStatusMessage({
+              text: `ગૂગલ ક્લાઉડમાંથી ${data.workers.length} કારીગરોનો હિસાબ આપોઆપ લોડ થઈ ગયો છે ✓`,
+              type: 'success',
+            });
+          } else if (!hasLocalChanges) {
             setStatusMessage({
               text: 'તમારો અગાઉ સેવ કરેલો હિસાબ ગૂગલ ક્લાઉડ પર ઉપલબ્ધ છે. જો તમારે જૂનો હિસાબ આ ફોનમાં પાછો લાવવો હોય તો નીચે "ક્લાઉડ માંથી હિસાબ રીસ્ટોર કરો" બટન દબાવો.',
               type: 'info',
@@ -468,20 +472,27 @@ export default function App() {
   };
 
   const handleDeleteWorkerPermanently = (id: string) => {
-    setWorkers((prev) => prev.filter((w) => w.id !== id));
+    // Mark worker as isDeleted so they are removed from active roster
+    // while their name, village, daily wage, and all old attendance records remain 100% preserved
+    setWorkers((prev) =>
+      prev.map((w) => (w.id === id ? { ...w, isDeleted: true } : w))
+    );
     if (selectedWorkerId === id) {
       setSelectedWorkerId(null);
     }
-    
-    // Clean up attendance records for this worker in db keys
-    setAttendanceDB((prev) => {
-      const copy = { ...prev };
-      Object.keys(copy).forEach((key) => {
-        if (key.startsWith(`${id}_`)) {
-          delete copy[key];
-        }
-      });
-      return copy;
+    setStatusMessage({
+      text: 'કારીગર સફળતાપૂર્વક ડિલીટ કરાયો છે. તેમનો અગાઉનો તમામ જૂનો હાજરી અને ઉપાડનો હિસાબ સુરક્ષિત સચવાયેલો રહેશે.',
+      type: 'success',
+    });
+  };
+
+  const handleRestoreDeletedWorker = (id: string) => {
+    setWorkers((prev) =>
+      prev.map((w) => (w.id === id ? { ...w, isDeleted: false } : w))
+    );
+    setStatusMessage({
+      text: 'કારીગર સફળતાપૂર્વક ચાલુ લિસ્ટમાં પુનઃ સક્રિય કરાયો છે.',
+      type: 'success',
     });
   };
 
@@ -597,6 +608,7 @@ export default function App() {
                 }}
                 onRequestDeleteWorker={(w) => setDeletingWorker(w)}
                 onReactivateWorker={handleReactivateWorkerForMonth}
+                onRestoreDeletedWorker={handleRestoreDeletedWorker}
                 onViewWorkerAttendance={handleViewWorkerAttendance}
               />
             )}

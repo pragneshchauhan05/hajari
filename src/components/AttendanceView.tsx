@@ -89,8 +89,18 @@ export default function AttendanceView({
   const daysArray = Array.from({ length: daysCount }, (_, i) => i + 1);
 
   // Filter workers based on search query and month active status
+  // If worker is marked as deleted, show them if they have attendance/upad records for this month
   const filteredWorkers = workers.filter((w) => {
-    if (!isWorkerActiveInMonth(w, selectedMonth, selectedYear)) return false;
+    const key = `${w.id}_${selectedYear}_${selectedMonth}`;
+    const monthlyData = attendanceDB[key];
+    const hasData = monthlyData && Object.values(monthlyData).some((r) => Boolean(r.status) || (r.upad && r.upad > 0));
+
+    if (w.isDeleted) {
+      if (!hasData) return false;
+    } else {
+      if (!isWorkerActiveInMonth(w, selectedMonth, selectedYear)) return false;
+    }
+
     const query = searchQuery.toLowerCase().trim();
     return (
       w.name.toLowerCase().includes(query) ||

@@ -5,6 +5,7 @@ export interface Worker {
   dailyWage: number;
   mobile?: string;
   inactiveMonths?: string[]; // Array of "YYYY-M" or "YYYY_M" e.g. ["2026-8"] indicating month deactivations
+  isDeleted?: boolean; // When permanently deleted from active list, old attendance and historical payroll reports remain preserved
 }
 
 export type AttendanceStatus = 'P' | 'A' | 'H' | 'O' | 'D' | ''; // P: Present (હાજર), A: Absent (ગેરહાજર), H: Half Day (અડધો દિવસ), O: Overtime (ઓવર ટાઈમ), D: Double Overtime (ડબલ ઓવર ટાઈમ), '': Unmarked (નોંધાયેલ નથી)

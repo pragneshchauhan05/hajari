@@ -53,6 +53,37 @@ export default function DashboardView({
 
   return (
     <div className="space-y-6">
+
+      {/* When no active workers are registered yet */}
+      {workers.filter((w) => !w.isDeleted).length === 0 && (
+        <div className="rounded-2xl border border-teal-200 bg-teal-50/70 p-5 dark:border-teal-900/40 dark:bg-teal-950/20 text-center space-y-3">
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-teal-100 text-teal-700 text-xl font-bold dark:bg-teal-900/40 dark:text-teal-300">
+            👥
+          </div>
+          <h4 className="text-base font-extrabold text-teal-950 dark:text-teal-200">હજુ સુધી કોઈ કારીગર ઉમેરેલા નથી</h4>
+          <p className="text-xs text-gray-600 dark:text-slate-400 max-w-md mx-auto">
+            જો તમે અગાઉ ગૂગલ આઈડી વડે હિસાબ સેવ કર્યો હોય તો નીચે ગૂગલ લોગિન કરીને "ક્લાઉડ માંથી હિસાબ રીસ્ટોર કરો" બટન દબાવો, અથવા નવો કારીગર ઉમેરો.
+          </p>
+          <div className="flex justify-center gap-3 pt-1">
+            <button
+              type="button"
+              onClick={() => onNavigateToTab('workers')}
+              className="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-xs font-black shadow-sm transition-all"
+            >
+              + નવો કારીગર ઉમેરો
+            </button>
+            {user && (
+              <button
+                type="button"
+                onClick={onRestore}
+                className="px-4 py-2 bg-white border border-teal-600 text-teal-700 hover:bg-teal-50 rounded-xl text-xs font-black shadow-sm transition-all dark:bg-slate-800 dark:text-teal-300"
+              >
+                ☁️ ક્લાઉડ માંથી રીસ્ટોર કરો
+              </button>
+            )}
+          </div>
+        </div>
+      )}
       {/* Summary Stat Cards Grid */}
       <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3">
         {/* Total Workers Card */}

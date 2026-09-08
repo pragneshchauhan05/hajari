@@ -87,7 +87,16 @@ export function calculateGlobalSummary(
   month: number
 ) {
   const daysCount = getDaysInMonth(year, month);
-  const activeWorkers = workers.filter((w) => isWorkerActiveInMonth(w, month, year));
+  const activeWorkers = workers.filter((w) => {
+    const key = `${w.id}_${year}_${month}`;
+    const monthlyData = attendanceDB[key];
+    const hasData = monthlyData && Object.values(monthlyData).some((r) => Boolean(r.status) || (r.upad && r.upad > 0));
+    
+    if (w.isDeleted) {
+      return hasData;
+    }
+    return isWorkerActiveInMonth(w, month, year) || hasData;
+  });
   let totalWorkers = activeWorkers.length;
   let totalPresent = 0;
   let totalAbsent = 0;

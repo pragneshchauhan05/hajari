@@ -1,5 +1,13 @@
 import { initializeApp } from 'firebase/app';
-import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, User, signInAnonymously } from 'firebase/auth';
+import {
+  getAuth,
+  signInWithPopup,
+  GoogleAuthProvider,
+  onAuthStateChanged,
+  User,
+  setPersistence,
+  browserLocalPersistence
+} from 'firebase/auth';
 import { getFirestore, doc, collection, writeBatch, getDocs, query, where, getDocFromServer } from 'firebase/firestore';
 import firebaseConfig from '../../firebase-applet-config.json';
 import { Worker, MonthlyWorkerAttendance } from '../types';
@@ -9,7 +17,15 @@ const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId); /* CRITICAL: The app will break without this line */
 export const auth = getAuth(app);
 
+// Enforce local persistence so user remains logged in across refreshes and restarts
+setPersistence(auth, browserLocalPersistence).catch((err) => {
+  console.warn('Could not set browserLocalPersistence on auth:', err);
+});
+
 const provider = new GoogleAuthProvider();
+provider.setCustomParameters({
+  prompt: 'select_account'
+});
 
 export enum OperationType {
   CREATE = 'create',
@@ -75,16 +91,11 @@ export const initAuth = (
   onAuthSuccess?: (user: User) => void,
   onAuthFailure?: () => void
 ) => {
-  return onAuthStateChanged(auth, async (user: User | null) => {
+  return onAuthStateChanged(auth, (user: User | null) => {
     if (user) {
       if (onAuthSuccess) onAuthSuccess(user);
     } else {
-      try {
-        await signInAnonymously(auth);
-      } catch (err: any) {
-        console.warn('Anonymous sign-in unavailable:', err?.message || err);
-        if (onAuthFailure) onAuthFailure();
-      }
+      if (onAuthFailure) onAuthFailure();
     }
   });
 };
@@ -123,6 +134,11 @@ export const backupToFirestore = async (
   userEmail?: string | null
 ): Promise<void> => {
   try {
+    // Safety check: Never wipe out cloud database with empty arrays if not confirmed
+    if (workers.length === 0 && Object.keys(attendanceDB).length === 0) {
+      return;
+    }
+
     const batch = writeBatch(db);
 
     const activeWorkerIds = new Set(workers.map(w => w.id));
@@ -156,6 +172,7 @@ export const backupToFirestore = async (
         dailyWage: worker.dailyWage,
         mobile: worker.mobile || '',
         inactiveMonths: worker.inactiveMonths || [],
+        isDeleted: worker.isDeleted === true,
         userId: userId,
         userEmail: userEmail || '',
         updatedAt: new Date().toISOString()
@@ -197,35 +214,24 @@ export const restoreFromFirestore = async (
   userId: string
 ): Promise<{ workers: Worker[]; attendanceDB: Record<string, MonthlyWorkerAttendance> } | null> => {
   try {
-    // 1. Fetch Workers matching userId
+    // 1. Fetch Workers matching userId (or all workers if demo/legacy collection)
     const workersQuery = query(collection(db, 'workers'), where('userId', '==', userId));
     const workersSnapshot = await getDocs(workersQuery);
     
     const workersList: Worker[] = [];
     workersSnapshot.forEach((docSnap) => {
       const d = docSnap.data();
-      const isDemo =
-        d.id === 'worker-1' ||
-        d.id === 'worker-2' ||
-        d.id === 'worker-3' ||
-        d.name === 'હસમુખભાઈ' ||
-        d.name === 'રમેશભાઈ' ||
-        d.name === 'મુકેશભાઈ' ||
-        d.name === 'હસમુખ' ||
-        d.name === 'રમેશ' ||
-        d.name === 'મુકેશ' ||
-        d.name === 'Hasmukhbhai' ||
-        d.name === 'Rameshbhai' ||
-        d.name === 'Mukeshbhai';
+      const isDemo = d.id === 'demo-worker-1' || d.id === 'demo-worker-2';
       
-      if (!isDemo) {
+      if (!isDemo && d.name) {
         workersList.push({
-          id: d.id,
+          id: d.id || docSnap.id,
           name: d.name,
-          village: d.village,
-          dailyWage: d.dailyWage,
+          village: d.village || '',
+          dailyWage: typeof d.dailyWage === 'number' ? d.dailyWage : Number(d.dailyWage) || 500,
           mobile: d.mobile || '',
           inactiveMonths: Array.isArray(d.inactiveMonths) ? d.inactiveMonths : [],
+          isDeleted: d.isDeleted === true,
         });
       }
     });
@@ -238,16 +244,7 @@ export const restoreFromFirestore = async (
     attendanceSnapshot.forEach((docSnap) => {
       const d = docSnap.data();
       if (d.id && d.records) {
-        const parts = d.id.split('_');
-        const workerId = parts[0];
-        const isDemo =
-          workerId === 'worker-1' ||
-          workerId === 'worker-2' ||
-          workerId === 'worker-3';
-        
-        if (!isDemo) {
-          retrievedDB[d.id] = d.records;
-        }
+        retrievedDB[d.id] = d.records;
       }
     });
 
@@ -258,10 +255,10 @@ export const restoreFromFirestore = async (
 
     return {
       workers: workersList,
-      attendanceDB: retrievedDB
+      attendanceDB: retrievedDB,
     };
   } catch (error) {
-    handleFirestoreError(error, OperationType.LIST, 'workers & attendance lists');
+    handleFirestoreError(error, OperationType.GET, 'restore workers & attendance');
     return null;
   }
 };
@@ -286,21 +283,8 @@ export const getAdminAllData = async (): Promise<UserProfileData[]> => {
       const userId = data.userId || 'unknown';
       const userEmail = data.userEmail || '';
       
-      const isDemo =
-        data.id === 'worker-1' ||
-        data.id === 'worker-2' ||
-        data.id === 'worker-3' ||
-        data.name === 'હસમુખભાઈ' ||
-        data.name === 'રમેશભાઈ' ||
-        data.name === 'મુકેશભાઈ' ||
-        data.name === 'હસમુખ' ||
-        data.name === 'રમેશ' ||
-        data.name === 'મુકેશ' ||
-        data.name === 'Hasmukhbhai' ||
-        data.name === 'Rameshbhai' ||
-        data.name === 'Mukeshbhai';
-
-      if (isDemo) return;
+      const isDemo = data.id === 'demo-worker-1' || data.id === 'demo-worker-2';
+      if (isDemo || !data.name) return;
 
       if (!usersMap[userId]) {
         usersMap[userId] = {
@@ -316,11 +300,13 @@ export const getAdminAllData = async (): Promise<UserProfileData[]> => {
       }
 
       usersMap[userId].workers.push({
-        id: data.id,
+        id: data.id || docSnap.id,
         name: data.name,
-        village: data.village,
-        dailyWage: data.dailyWage,
+        village: data.village || '',
+        dailyWage: typeof data.dailyWage === 'number' ? data.dailyWage : Number(data.dailyWage) || 500,
         mobile: data.mobile || '',
+        inactiveMonths: Array.isArray(data.inactiveMonths) ? data.inactiveMonths : [],
+        isDeleted: data.isDeleted === true,
       });
     });
 

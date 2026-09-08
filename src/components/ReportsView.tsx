@@ -23,10 +23,14 @@ export default function ReportsView({
   const activeMonthLabel = GUJARATI_MONTHS.find((m) => m.value === selectedMonth)?.label || '';
   const daysCount = getDaysInMonth(selectedYear, selectedMonth);
 
-  // Include workers who are active in the selected month OR have recorded attendance for that month
+  // Include workers who are active in the selected month OR have recorded attendance/upad for that month
   const reportWorkers = workers.filter((w) => {
     const key = `${w.id}_${selectedYear}_${selectedMonth}`;
-    const hasData = attendanceDB[key] && Object.keys(attendanceDB[key]).length > 0;
+    const monthlyData = attendanceDB[key];
+    const hasData = monthlyData && Object.values(monthlyData).some((r) => Boolean(r.status) || (r.upad && r.upad > 0));
+    if (w.isDeleted) {
+      return hasData;
+    }
     return isWorkerActiveInMonth(w, selectedMonth, selectedYear) || hasData;
   });
 
