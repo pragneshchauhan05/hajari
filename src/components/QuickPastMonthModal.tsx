@@ -216,8 +216,19 @@ export default function QuickPastMonthModal({
         note: note.trim(),
       });
 
-      setSavedWorkerId(newId);
-      setSavedSuccess(true);
+      // Reset form fields
+      setPresentDays('');
+      setAbsentDays('');
+      setTotalUpad(0);
+      setNote('');
+      setNewWorkerName('');
+      setNewWorkerVillage('');
+      setNewWorkerMobile('');
+      setErrorMessage('');
+      setSavedSuccess(false);
+
+      // Close modal on submit as requested
+      onClose();
     } else {
       if (!selectedWorkerId) {
         setErrorMessage(
@@ -243,8 +254,16 @@ export default function QuickPastMonthModal({
         note: note.trim(),
       });
 
-      setSavedWorkerId(selectedWorkerId);
-      setSavedSuccess(true);
+      // Reset form fields
+      setPresentDays('');
+      setAbsentDays('');
+      setTotalUpad(0);
+      setNote('');
+      setErrorMessage('');
+      setSavedSuccess(false);
+
+      // Close modal on submit as requested
+      onClose();
     }
   };
 

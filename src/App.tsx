@@ -20,7 +20,6 @@ import {
   logout,
   backupToFirestore,
   restoreFromFirestore,
-  subscribeToUserData,
   deleteWorkerFromFirestore,
   cacheLastUploaded,
   isQuotaExhaustedError,
@@ -211,14 +210,62 @@ export default function App() {
   const [editingWorker, setEditingWorker] = useState<Worker | null>(null);
   const [deletingWorker, setDeletingWorker] = useState<Worker | null>(null);
 
-  // Sync to local storage
+  // Integrated Global Firebase Cloud Sync States
+  const [user, setUser] = useState<User | null>(null);
+  const [isLoggingIn, setIsLoggingIn] = useState<boolean>(false);
+  const [isBackingUp, setIsBackingUp] = useState<boolean>(false);
+  const [isRestoring, setIsRestoring] = useState<boolean>(false);
+  const [hasLocalChanges, setHasLocalChanges] = useState<boolean>(false);
+  const [statusMessage, setStatusMessage] = useState<{
+    text: string;
+    type: 'success' | 'error' | 'info';
+  } | null>(null);
+
+  // Sync to local storage for all keys
   useEffect(() => {
-    localStorage.setItem('hazari_workers', JSON.stringify(workers));
-  }, [workers]);
+    try {
+      const json = JSON.stringify(workers);
+      localStorage.setItem('hazari_workers', json);
+      if (user?.uid) {
+        localStorage.setItem(`hazari_workers_${user.uid}`, json);
+      }
+      const curEmail = user?.email?.toLowerCase() || '';
+      if (curEmail.includes('pragnesh')) {
+        localStorage.setItem('hazari_workers_pragnesh', json);
+      }
+    } catch (e) {}
+  }, [workers, user]);
 
   useEffect(() => {
-    localStorage.setItem('hazari_attendance_db', JSON.stringify(attendanceDB));
-  }, [attendanceDB]);
+    try {
+      const json = JSON.stringify(attendanceDB);
+      localStorage.setItem('hazari_attendance_db', json);
+      if (user?.uid) {
+        localStorage.setItem(`hazari_attendance_db_${user.uid}`, json);
+      }
+      const curEmail = user?.email?.toLowerCase() || '';
+      if (curEmail.includes('pragnesh')) {
+        localStorage.setItem('hazari_attendance_db_pragnesh', json);
+      }
+    } catch (e) {}
+  }, [attendanceDB, user]);
+
+  // Synchronous safety flush before window unloads/refreshes
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      try {
+        localStorage.setItem('hazari_workers', JSON.stringify(workers));
+        localStorage.setItem('hazari_attendance_db', JSON.stringify(attendanceDB));
+        if (user?.uid) {
+          localStorage.setItem(`hazari_workers_${user.uid}`, JSON.stringify(workers));
+          localStorage.setItem(`hazari_attendance_db_${user.uid}`, JSON.stringify(attendanceDB));
+        }
+      } catch (e) {}
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [workers, attendanceDB, user]);
 
   useEffect(() => {
     localStorage.setItem('hazari_selected_month', selectedMonth.toString());
@@ -237,21 +284,10 @@ export default function App() {
     }
   }, [isDarkMode]);
 
-  // Integrated Global Firebase Cloud Sync States
-  const [user, setUser] = useState<User | null>(null);
-  const [isLoggingIn, setIsLoggingIn] = useState<boolean>(false);
-  const [isBackingUp, setIsBackingUp] = useState<boolean>(false);
-  const [isRestoring, setIsRestoring] = useState<boolean>(false);
-  const [hasLocalChanges, setHasLocalChanges] = useState<boolean>(false);
-  const [statusMessage, setStatusMessage] = useState<{
-    text: string;
-    type: 'success' | 'error' | 'info';
-  } | null>(null);
-
   const isFirstRender = useRef(true);
   const isApplyingCloudUpdateRef = useRef(false);
 
-  // Initialize Auth handler on load & purge any foreign data
+  // Initialize Auth handler on load & purge any foreign data without overwriting local changes
   useEffect(() => {
     const unsubscribe = initAuth(
       (currentUser) => {
@@ -270,7 +306,6 @@ export default function App() {
             return false;
           };
 
-          // Check if there is user-scoped localStorage data
           const scopedWorkersKey = `hazari_workers_${currentUser.uid}`;
           const scopedAttKey = `hazari_attendance_db_${currentUser.uid}`;
           const scopedWorkersJson = localStorage.getItem(scopedWorkersKey);
@@ -292,12 +327,16 @@ export default function App() {
           }
 
           setWorkers((prev) => {
-            const source = baseWorkers || prev;
+            // CRITICAL FIX: NEVER destroy or downgrade active state!
+            // If prev already has workers loaded on mount, KEEP prev!
+            const source = (prev && prev.length > 0) ? prev : (baseWorkers || prev);
             const clean = source.filter((w) => !isForeign(w));
             const cleanIds = new Set(clean.map((w) => w.id));
 
             setAttendanceDB((prevAtt) => {
-              const attSource = baseAtt || prevAtt;
+              // CRITICAL FIX: If prevAtt already has attendance loaded on mount from hazari_attendance_db,
+              // ALWAYS KEEP prevAtt so freshly filled attendance NEVER disappears on refresh!
+              const attSource = (prevAtt && Object.keys(prevAtt).length > 0) ? prevAtt : (baseAtt || prevAtt);
               const cleanAtt: Record<string, MonthlyWorkerAttendance> = {};
               Object.keys(attSource).forEach((k) => {
                 const wId = k.split('_')[0];
@@ -308,6 +347,9 @@ export default function App() {
               try {
                 localStorage.setItem(scopedAttKey, JSON.stringify(cleanAtt));
                 localStorage.setItem('hazari_attendance_db', JSON.stringify(cleanAtt));
+                if (curEmail.includes('pragnesh')) {
+                  localStorage.setItem('hazari_attendance_db_pragnesh', JSON.stringify(cleanAtt));
+                }
               } catch (e) {}
               return cleanAtt;
             });
@@ -315,6 +357,9 @@ export default function App() {
             try {
               localStorage.setItem(scopedWorkersKey, JSON.stringify(clean));
               localStorage.setItem('hazari_workers', JSON.stringify(clean));
+              if (curEmail.includes('pragnesh')) {
+                localStorage.setItem('hazari_workers_pragnesh', JSON.stringify(clean));
+              }
             } catch (e) {}
             return clean;
           });
@@ -375,107 +420,7 @@ export default function App() {
     setHasLocalChanges(true);
   }, [workers, attendanceDB]);
 
-  // Keep ref to latest local state so real-time subscription callback can compare accurately
-  const latestLocalStateRef = useRef({ workers, attendanceDB });
-  latestLocalStateRef.current = { workers, attendanceDB };
-  const hasInitializedCloudRef = useRef(false);
-
-  // Real-time bidirectional Cloud Synchronization (Mobile <-> Laptop live sync within 2 seconds)
-  useEffect(() => {
-    let isSubscribed = true;
-
-    const unsubscribe = subscribeToUserData(
-      user?.uid,
-      (cloudData) => {
-        if (!isSubscribed) return;
-
-        const cur = latestLocalStateRef.current;
-        const hasCloudData = cloudData.workers.length > 0 || Object.keys(cloudData.attendanceDB).length > 0;
-
-        if (hasCloudData) {
-          // If user is actively typing on this device right this moment, don't interrupt active keystrokes
-          const isUserActivelyEditing =
-            hasLocalChangesRef.current || (Date.now() - lastLocalEditTimeRef.current < 1200);
-          if (isUserActivelyEditing) {
-            return;
-          }
-
-          // Intelligent merge without data loss, strictly scoped to this user
-          const { merged: safeWorkers } = mergeWorkers(
-            cur.workers,
-            cloudData.workers,
-            user?.uid,
-            user?.email
-          );
-          const safeWorkerIds = new Set(safeWorkers.map((w) => w.id));
-          const { merged: safeAttendance } = mergeAttendanceDB(
-            cur.attendanceDB,
-            cloudData.attendanceDB,
-            safeWorkerIds
-          );
-
-          const currentWorkersJson = JSON.stringify(cur.workers);
-          const safeWorkersJson = JSON.stringify(safeWorkers);
-          const currentAttendanceJson = JSON.stringify(cur.attendanceDB);
-          const safeAttendanceJson = JSON.stringify(safeAttendance);
-
-          if (currentWorkersJson !== safeWorkersJson || currentAttendanceJson !== safeAttendanceJson) {
-            // Signal to local change detector that this is incoming cloud data so it doesn't trigger a write back
-            isApplyingCloudUpdateRef.current = true;
-            lastSyncedJsonRef.current = {
-              workers: safeWorkersJson,
-              attendance: safeAttendanceJson,
-            };
-
-            setWorkers(safeWorkers);
-            setAttendanceDB(safeAttendance);
-            try {
-              localStorage.setItem('hazari_workers', safeWorkersJson);
-              localStorage.setItem('hazari_attendance_db', safeAttendanceJson);
-              if (user?.uid) {
-                localStorage.setItem(`hazari_workers_${user.uid}`, safeWorkersJson);
-                localStorage.setItem(`hazari_attendance_db_${user.uid}`, safeAttendanceJson);
-              }
-            } catch (e) {}
-          }
-
-          hasInitializedCloudRef.current = true;
-          hasLocalChangesRef.current = false;
-          setHasLocalChanges(false);
-        } else if (user?.uid && cur.workers.length > 0 && !hasInitializedCloudRef.current) {
-          // Initial migration: cloud is empty, back up existing local data if owned by this user
-          hasInitializedCloudRef.current = true;
-          const curEmail = user.email?.trim().toLowerCase() || '';
-          const ownCleanWorkers = cur.workers.filter((w) => {
-            const wEmail = w.userEmail?.trim().toLowerCase() || '';
-            if (wEmail.includes('bharatchauhan103') && !curEmail.includes('bharatchauhan')) {
-              return false;
-            }
-            if (w.userId && w.userId !== user.uid) return false;
-            if (curEmail && wEmail && wEmail !== curEmail) return false;
-            return true;
-          });
-          if (ownCleanWorkers.length > 0 && !isQuotaExhausted()) {
-            backupToFirestore(user.uid, ownCleanWorkers, cur.attendanceDB, user.email).catch(() => {});
-          }
-        }
-      },
-      (error) => {
-        if (isQuotaExhaustedError(error)) {
-          markQuotaExhausted();
-        } else {
-          console.warn('Real-time sync subscription error:', error);
-        }
-      }
-    );
-
-    return () => {
-      isSubscribed = false;
-      unsubscribe();
-    };
-  }, [user]);
-
-  // Automatic live backup trigger (1000ms debounce ensures laptop changes reflect on mobile within < 2 seconds)
+  // Debounced auto-backup to Google Cloud (saves user data safely without overwriting local input)
   useEffect(() => {
     if (!user || !hasLocalChanges || isQuotaExhausted()) return;
 
@@ -500,7 +445,7 @@ export default function App() {
       } finally {
         setIsBackingUp(false);
       }
-    }, 1000); // 1.0s debounce: Fast enough to sync in < 2 seconds, while batches edits to conserve quota
+    }, 1500);
 
     return () => clearTimeout(delayDebounceFn);
   }, [workers, attendanceDB, user, hasLocalChanges]);
@@ -1007,7 +952,15 @@ export default function App() {
       };
 
       try {
-        localStorage.setItem('hazari_attendance_db', JSON.stringify(nextDB));
+        const json = JSON.stringify(nextDB);
+        localStorage.setItem('hazari_attendance_db', json);
+        if (user?.uid) {
+          localStorage.setItem(`hazari_attendance_db_${user.uid}`, json);
+        }
+        const curEmail = user?.email?.toLowerCase() || '';
+        if (curEmail.includes('pragnesh')) {
+          localStorage.setItem('hazari_attendance_db_pragnesh', json);
+        }
       } catch (e) {
         console.error('Error saving attendance to localStorage:', e);
       }

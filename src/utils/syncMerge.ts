@@ -34,26 +34,27 @@ export const mergeAttendanceDB = (
     return { merged: { ...filteredCloud }, hasLocalUnsynced: false };
   }
 
-  const merged: Record<string, MonthlyWorkerAttendance> = { ...filteredCloud };
+  // Start with local as the baseline to protect user edits on this device!
+  const merged: Record<string, MonthlyWorkerAttendance> = { ...filteredLocal };
   let hasLocalUnsynced = false;
 
-  for (const [key, localMonth] of Object.entries(filteredLocal)) {
+  for (const [key, cloudMonth] of Object.entries(filteredCloud)) {
     if (!merged[key]) {
-      // Cloud doesn't have this worker's month at all - keep local!
-      merged[key] = localMonth;
-      hasLocalUnsynced = true;
+      // Local doesn't have this worker's month at all - bring in from cloud!
+      merged[key] = cloudMonth;
     } else {
-      // Cloud has this month - merge day by day safely
+      // Both have this month - merge day by day safely, never overwriting valid local data
       const mergedMonth: MonthlyWorkerAttendance = { ...merged[key] };
 
-      for (const [dayStr, localRecord] of Object.entries(localMonth)) {
+      for (const [dayStr, cloudRecord] of Object.entries(cloudMonth)) {
         const day = Number(dayStr);
-        const cloudRecord = mergedMonth[day];
+        const localRecord = mergedMonth[day];
 
         const localHasData =
-          Boolean(localRecord?.status) ||
-          (typeof localRecord?.upad === 'number' && localRecord.upad > 0) ||
-          Boolean(localRecord?.note);
+          localRecord &&
+          (Boolean(localRecord.status) ||
+            (typeof localRecord.upad === 'number' && localRecord.upad > 0) ||
+            Boolean(localRecord.note));
 
         const cloudHasData =
           cloudRecord &&
@@ -61,20 +62,16 @@ export const mergeAttendanceDB = (
             (typeof cloudRecord.upad === 'number' && cloudRecord.upad > 0) ||
             Boolean(cloudRecord.note));
 
-        if (localHasData && !cloudHasData) {
-          // Local has data that cloud doesn't have yet - PRESERVE LOCAL!
-          mergedMonth[day] = localRecord;
-          hasLocalUnsynced = true;
+        if (!localHasData && cloudHasData) {
+          // Local had no data for this day, but cloud has it - take cloud!
+          mergedMonth[day] = cloudRecord;
         } else if (localHasData && cloudHasData) {
-          // Both have data: if cloud upad is 0 or missing but local upad > 0, preserve local upad!
-          if ((!cloudRecord.upad || cloudRecord.upad === 0) && localRecord.upad && localRecord.upad > 0) {
-            mergedMonth[day] = {
-              ...cloudRecord,
-              upad: localRecord.upad,
-              note: localRecord.note || cloudRecord.note || '',
-            };
-            hasLocalUnsynced = true;
-          }
+          // Both have data: preserve local status & upad, fill missing note if any
+          mergedMonth[day] = {
+            status: localRecord.status || cloudRecord.status || '',
+            upad: typeof localRecord.upad === 'number' && localRecord.upad > 0 ? localRecord.upad : (cloudRecord.upad || 0),
+            note: localRecord.note || cloudRecord.note || '',
+          };
         }
       }
 
