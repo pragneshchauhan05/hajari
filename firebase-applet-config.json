@@ -6,5 +6,7 @@
   "firestoreDatabaseId": "ai-studio-c02f5d4b-d697-4775-9ceb-5fec58e5678e",
   "storageBucket": "deep-citron-gp497.firebasestorage.app",
   "messagingSenderId": "28550194351",
-  "measurementId": ""
+  "measurementId": "",
+  "oAuthClientId": "28550194351-1cjpr65mb9o6683npdppkdd1mmssbc34.apps.googleusercontent.com",
+  "recaptchaSiteKey": ""
 }

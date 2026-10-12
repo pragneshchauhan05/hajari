@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Worker } from '../types';
-import { GUJARATI_MONTHS } from '../utils/attendanceUtils';
+import { useLanguage } from '../context/LanguageContext';
 
 interface DeleteWorkerModalProps {
   isOpen: boolean;
@@ -21,11 +21,12 @@ export default function DeleteWorkerModal({
   onDeactivateForMonth,
   onDeletePermanently,
 }: DeleteWorkerModalProps) {
+  const { language, t, months } = useLanguage();
   const [deleteOption, setDeleteOption] = useState<'month' | 'permanent'>('month');
 
   if (!isOpen || !worker) return null;
 
-  const monthLabel = GUJARATI_MONTHS.find((m) => m.value === selectedMonth)?.label || '';
+  const monthLabel = months.find((m) => m.value === selectedMonth)?.label || '';
 
   const handleConfirm = () => {
     if (deleteOption === 'month') {
@@ -50,7 +51,7 @@ export default function DeleteWorkerModal({
             </div>
             <div>
               <h3 className="text-lg font-extrabold text-gray-900 dark:text-slate-100 font-sans">
-                કારીગર રદ કરવાની રીત
+                {t('deleteModalTitle')}
               </h3>
               <p className="text-xs text-teal-600 font-bold dark:text-teal-400">
                 👤 {worker.name} ({worker.village})
@@ -59,7 +60,7 @@ export default function DeleteWorkerModal({
           </div>
           <button
             onClick={onClose}
-            className="flex h-8 w-8 items-center justify-center rounded-xl text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors dark:hover:bg-slate-800 dark:text-slate-400"
+            className="flex h-8 w-8 items-center justify-center rounded-xl text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors dark:hover:bg-slate-800 dark:text-slate-400 cursor-pointer"
           >
             <i className="fa-solid fa-xmark text-lg"></i>
           </button>
@@ -68,7 +69,11 @@ export default function DeleteWorkerModal({
         {/* Options selection */}
         <div className="mt-5 space-y-3">
           <p className="text-xs font-semibold text-gray-500 dark:text-slate-400">
-            તમે <span className="font-extrabold text-gray-900 dark:text-slate-200">{worker.name}</span> માટે શું કરવા માંગો છો?
+            {language === 'en' ? (
+              <>Choose action for <span className="font-extrabold text-gray-900 dark:text-slate-200">{worker.name}</span>:</>
+            ) : (
+              <>તમે <span className="font-extrabold text-gray-900 dark:text-slate-200">{worker.name}</span> માટે શું કરવા માંગો છો?</>
+            )}
           </p>
 
           {/* Option 1: Current Month Only (RECOMMENDED) */}
@@ -91,14 +96,18 @@ export default function DeleteWorkerModal({
             <div className="flex-1">
               <div className="flex items-center justify-between">
                 <span className="text-sm font-extrabold text-teal-950 dark:text-teal-300">
-                  માત્ર આ મહિના પૂરતા રદ કરો ({monthLabel} {selectedYear})
+                  {language === 'en' ? `Deactivate for ${monthLabel} ${selectedYear} only` : `માત્ર આ મહિના પૂરતા રદ કરો (${monthLabel} ${selectedYear})`}
                 </span>
                 <span className="rounded-md bg-teal-100 px-2 py-0.5 text-[10px] font-black text-teal-700 dark:bg-teal-900 dark:text-teal-300">
-                  સુરક્ષિત (ઉત્તમ)
+                  {language === 'en' ? 'Safe (Recommended)' : 'સુરક્ષિત (ઉત્તમ)'}
                 </span>
               </div>
               <p className="mt-1 text-xs text-gray-600 dark:text-slate-400 leading-relaxed">
-                આ મહિનાની હાજરીમાંથી નીકળી જશે, પરંતુ <strong className="text-teal-700 dark:text-teal-400">જૂના અને આવનારા તમામ મહિનાઓનો હિસાબ સુરક્ષિત રહેશે</strong>.
+                {language === 'en' ? (
+                  <>Hides worker from this month's register, but <strong className="text-teal-700 dark:text-teal-400">all past & future records remain 100% safe</strong>.</>
+                ) : (
+                  <>આ મહિનાની હાજરીમાંથી નીકળી જશે, પરંતુ <strong className="text-teal-700 dark:text-teal-400">જૂના અને આવનારા તમામ મહિનાઓનો હિસાબ સુરક્ષિત રહેશે</strong>.</>
+                )}
               </p>
             </div>
           </label>
@@ -123,14 +132,18 @@ export default function DeleteWorkerModal({
             <div className="flex-1">
               <div className="flex items-center justify-between">
                 <span className="text-sm font-extrabold text-rose-950 dark:text-rose-300">
-                  કાયમી માટે ડિલીટ કરો (ચાલુ લિસ્ટમાંથી દૂર કરો)
+                  {language === 'en' ? 'Archive / Delete Permanently' : 'કાયમી માટે ડિલીટ કરો (ચાલુ લિસ્ટમાંથી દૂર કરો)'}
                 </span>
                 <span className="rounded-md bg-emerald-100 px-2 py-0.5 text-[10px] font-black text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
-                  જૂનો ડેટા સુરક્ષિત રહેશે
+                  {language === 'en' ? 'Data Preserved' : 'જૂનો ડેટા સુરક્ષિત રહેશે'}
                 </span>
               </div>
               <p className="mt-1 text-xs text-gray-600 dark:text-slate-400 leading-relaxed">
-                આ કારીગર ચાલુ લિસ્ટમાંથી નીકળી જશે, પરંતુ <strong className="text-emerald-700 dark:text-emerald-400">તેમનો અગાઉનો તમામ જૂનો હાજરી અને ઉપાડનો હિસાબ કાયમ માટે સચવાયેલો રહેશે</strong>.
+                {language === 'en' ? (
+                  <>Worker is removed from active list, but <strong className="text-emerald-700 dark:text-emerald-400">all past attendance & financial records are safely preserved</strong>.</>
+                ) : (
+                  <>આ કારીગર ચાલુ લિસ્ટમાંથી નીકળી જશે, પરંતુ <strong className="text-emerald-700 dark:text-emerald-400">તેમનો અગાઉનો તમામ જૂનો હાજરી અને ઉપાડનો હિસાબ કાયમ માટે સચવાયેલો રહેશે</strong>.</>
+                )}
               </p>
             </div>
           </label>
@@ -141,22 +154,24 @@ export default function DeleteWorkerModal({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-xl px-4 py-2.5 text-xs font-bold text-gray-600 hover:bg-gray-100 transition-colors dark:text-slate-400 dark:hover:bg-slate-800"
+            className="rounded-xl px-4 py-2.5 text-xs font-bold text-gray-600 hover:bg-gray-100 transition-colors dark:text-slate-400 dark:hover:bg-slate-800 cursor-pointer"
           >
-            રદ કરો (Cancel)
+            {t('cancelBtn')}
           </button>
 
           <button
             type="button"
             onClick={handleConfirm}
-            className={`flex items-center gap-1.5 rounded-xl px-5 py-2.5 text-xs font-extrabold text-white shadow-md transition-all active:scale-95 ${
+            className={`flex items-center gap-1.5 rounded-xl px-5 py-2.5 text-xs font-extrabold text-white shadow-md transition-all active:scale-95 cursor-pointer ${
               deleteOption === 'month'
                 ? 'bg-teal-600 hover:bg-teal-700 shadow-teal-100 dark:shadow-none'
                 : 'bg-rose-600 hover:bg-rose-700 shadow-rose-100 dark:shadow-none'
             }`}
           >
             <i className={`fa-solid ${deleteOption === 'month' ? 'fa-calendar-xmark' : 'fa-trash-can'}`}></i>
-            {deleteOption === 'month' ? `આ મહિનામાં રદ કરો (${monthLabel})` : 'કાયમી ડિલીટ કરો'}
+            {deleteOption === 'month' 
+              ? (language === 'en' ? `Deactivate for ${monthLabel}` : `આ મહિનામાં રદ કરો (${monthLabel})`) 
+              : (language === 'en' ? 'Delete & Archive' : 'કાયમી ડિલીટ કરો')}
           </button>
         </div>
       </div>

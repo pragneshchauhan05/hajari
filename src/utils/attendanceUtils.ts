@@ -18,13 +18,76 @@ export const GUJARATI_MONTHS = [
 export const YEARS = Array.from({ length: 11 }, (_, i) => 2020 + i);
 
 /**
+ * Resolves the effective daily wage for a worker for a specific year and month.
+ * If wage was changed in a later month, earlier months retain their earlier wage.
+ * Keys in wageHistory are formatted as "YYYY-MM" (e.g. "2026-10").
+ */
+export function getWorkerWageForMonth(
+  worker: Worker,
+  year: number,
+  month: number
+): number {
+  if (!worker) return 0;
+  const history = worker.wageHistory;
+  if (!history || typeof history !== 'object' || Object.keys(history).length === 0) {
+    return Number(worker.dailyWage) || 0;
+  }
+
+  const targetKey = `${year}-${String(month).padStart(2, '0')}`;
+
+  // If exact month has an explicit entry
+  if (typeof history[targetKey] === 'number') {
+    return history[targetKey];
+  }
+
+  // Sort effective keys chronologically ("YYYY-MM" sorts lexicographically)
+  const sortedKeys = Object.keys(history).sort();
+
+  // Find the latest key that is <= targetKey
+  let effectiveWage: number | null = null;
+  for (const k of sortedKeys) {
+    if (k <= targetKey) {
+      if (typeof history[k] === 'number') {
+        effectiveWage = history[k];
+      }
+    } else {
+      break;
+    }
+  }
+
+  if (effectiveWage !== null) {
+    return effectiveWage;
+  }
+
+  // If target month is earlier than the earliest history entry:
+  // Check if baseline '2020-01' exists
+  if (typeof history['2020-01'] === 'number') {
+    return history['2020-01'];
+  }
+
+  // Fallback to earliest recorded wage or worker base dailyWage
+  if (sortedKeys.length > 0 && typeof history[sortedKeys[0]] === 'number') {
+    return history[sortedKeys[0]];
+  }
+
+  return Number(worker.dailyWage) || 0;
+}
+
+/**
  * Checks if a worker is active for a given year and month.
  */
 export function isWorkerActiveInMonth(worker: Worker, month: number, year: number): boolean {
   if (!worker.inactiveMonths || worker.inactiveMonths.length === 0) return true;
   const keyHyphen = `${year}-${month}`;
   const keyUnderscore = `${year}_${month}`;
-  return !worker.inactiveMonths.includes(keyHyphen) && !worker.inactiveMonths.includes(keyUnderscore);
+  const keyPaddedHyphen = `${year}-${String(month).padStart(2, '0')}`;
+  const keyPaddedUnderscore = `${year}_${String(month).padStart(2, '0')}`;
+  return (
+    !worker.inactiveMonths.includes(keyHyphen) &&
+    !worker.inactiveMonths.includes(keyUnderscore) &&
+    !worker.inactiveMonths.includes(keyPaddedHyphen) &&
+    !worker.inactiveMonths.includes(keyPaddedUnderscore)
+  );
 }
 
 /**
@@ -93,7 +156,7 @@ export function calculateGlobalSummary(
     const hasData = monthlyData && Object.values(monthlyData).some((r) => Boolean(r.status) || (r.upad && r.upad > 0));
     
     if (w.isDeleted) {
-      return hasData;
+      return false;
     }
     return isWorkerActiveInMonth(w, month, year) || hasData;
   });
@@ -106,7 +169,8 @@ export function calculateGlobalSummary(
   activeWorkers.forEach((worker) => {
     const key = `${worker.id}_${year}_${month}`;
     const monthlyData = attendanceDB[key];
-    const totals = calculateWorkerTotals(monthlyData, worker.dailyWage, daysCount);
+    const wage = getWorkerWageForMonth(worker, year, month);
+    const totals = calculateWorkerTotals(monthlyData, wage, daysCount);
     
     totalPresent += totals.presentDays;
     totalAbsent += totals.absentDays;

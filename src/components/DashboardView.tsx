@@ -1,15 +1,16 @@
 import React from 'react';
-import { Worker, MonthlyWorkerAttendance } from '../types';
-import { calculateGlobalSummary, GUJARATI_MONTHS } from '../utils/attendanceUtils';
-import FirebaseSyncPanel from './FirebaseSyncPanel';
+import { Worker, MonthlyWorkerAttendance, ActiveTab } from '../types';
+import { calculateGlobalSummary } from '../utils/attendanceUtils';
 import { User } from 'firebase/auth';
+import { useLanguage } from '../context/LanguageContext';
+import { formatIndianCurrency } from '../utils/translations';
 
 interface DashboardViewProps {
   workers: Worker[];
   attendanceDB: Record<string, MonthlyWorkerAttendance>;
   selectedMonth: number;
   selectedYear: number;
-  onNavigateToTab: (tab: 'dashboard' | 'workers' | 'attendance' | 'reports') => void;
+  onNavigateToTab: (tab: ActiveTab) => void;
   onRestoreSuccess: (
     workers: Worker[],
     attendanceDB: Record<string, MonthlyWorkerAttendance>
@@ -23,6 +24,7 @@ interface DashboardViewProps {
   onLogin: () => void;
   onLogout: () => void;
   onRestore: () => void;
+  onOpenQuickEntry?: () => void;
 }
 
 export default function DashboardView({
@@ -31,68 +33,110 @@ export default function DashboardView({
   selectedMonth,
   selectedYear,
   onNavigateToTab,
-  onRestoreSuccess,
+  onRestoreSuccess: _onRestoreSuccess,
   user,
-  isLoggingIn,
-  isBackingUp,
+  isLoggingIn: _isLoggingIn,
+  isBackingUp: _isBackingUp,
   isRestoring,
-  hasLocalChanges,
-  statusMessage,
-  onLogin,
-  onLogout,
+  hasLocalChanges: _hasLocalChanges,
+  statusMessage: _statusMessage,
+  onLogin: _onLogin,
+  onLogout: _onLogout,
   onRestore,
+  onOpenQuickEntry,
 }: DashboardViewProps) {
+  const { language, t } = useLanguage();
+
   // Calculate stats for current selection
   const stats = calculateGlobalSummary(workers, attendanceDB, selectedYear, selectedMonth);
-  const activeMonthLabel = GUJARATI_MONTHS.find((m) => m.value === selectedMonth)?.label || '';
 
   // Format currency
   const formatCurrency = (val: number) => {
-    return '₹' + Math.round(val).toLocaleString('gu-IN');
+    return formatIndianCurrency(val);
   };
 
   return (
     <div className="space-y-6">
-
       {/* When no active workers are registered yet */}
       {workers.filter((w) => !w.isDeleted).length === 0 && (
         <div className="rounded-2xl border border-teal-200 bg-teal-50/70 p-5 dark:border-teal-900/40 dark:bg-teal-950/20 text-center space-y-3">
           <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-teal-100 text-teal-700 text-xl font-bold dark:bg-teal-900/40 dark:text-teal-300">
             👥
           </div>
-          <h4 className="text-base font-extrabold text-teal-950 dark:text-teal-200">હજુ સુધી કોઈ કારીગર ઉમેરેલા નથી</h4>
+          <h4 className="text-base font-extrabold text-teal-950 dark:text-teal-200">
+            {t('noWorkersTitle')}
+          </h4>
           <p className="text-xs text-gray-600 dark:text-slate-400 max-w-md mx-auto">
-            જો તમે અગાઉ ગૂગલ આઈડી વડે હિસાબ સેવ કર્યો હોય તો નીચે ગૂગલ લોગિન કરીને "ક્લાઉડ માંથી હિસાબ રીસ્ટોર કરો" બટન દબાવો, અથવા નવો કારીગર ઉમેરો.
+            {t('noWorkersDesc')}
           </p>
-          <div className="flex justify-center gap-3 pt-1">
+          <div className="flex flex-wrap justify-center gap-3 pt-1">
             <button
               type="button"
               onClick={() => onNavigateToTab('workers')}
-              className="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-xs font-black shadow-sm transition-all"
+              className="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-xs font-black shadow-sm transition-all cursor-pointer"
             >
-              + નવો કારીગર ઉમેરો
+              {t('addNewWorkerBtn')}
             </button>
-            {user && (
+            {onOpenQuickEntry && (
               <button
                 type="button"
-                onClick={onRestore}
-                className="px-4 py-2 bg-white border border-teal-600 text-teal-700 hover:bg-teal-50 rounded-xl text-xs font-black shadow-sm transition-all dark:bg-slate-800 dark:text-teal-300"
+                onClick={onOpenQuickEntry}
+                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black shadow-sm transition-all cursor-pointer flex items-center gap-1.5"
               >
-                ☁️ ક્લાઉડ માંથી રીસ્ટોર કરો
+                <i className="fa-solid fa-bolt-lightning text-amber-300 text-xs"></i>
+                <span>{language === 'en' ? 'Enter Past Data' : 'જૂનો હિસાબ એન્ટર કરો'}</span>
               </button>
             )}
           </div>
         </div>
       )}
+
+      {/* Quick Past Month Direct Entry Hero Banner */}
+      {onOpenQuickEntry && (
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 rounded-2xl border-2 border-emerald-500/30 bg-gradient-to-r from-emerald-50/90 via-teal-50/70 to-green-50/90 p-4 sm:p-5 dark:border-emerald-800/50 dark:bg-slate-900/90 shadow-sm transition-all hover:border-emerald-500/60">
+          <div className="flex items-start sm:items-center gap-3.5">
+            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white text-xl shadow-md shadow-emerald-500/25">
+              <i className="fa-solid fa-calendar-plus"></i>
+            </span>
+            <div>
+              <div className="flex flex-wrap items-center gap-2">
+                <h3 className="text-sm sm:text-base font-black text-gray-900 dark:text-slate-100 font-sans">
+                  {language === 'en' ? 'Enter Past / Old Data' : 'જૂનો હિસાબ / ડેટા એન્ટર કરો'}
+                </h3>
+                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-200/80 text-emerald-900 dark:bg-emerald-950 dark:text-emerald-300">
+                  {language === 'en' ? 'Quick Entry' : 'ઝડપી એન્ટ્રી'}
+                </span>
+              </div>
+              <p className="text-xs text-gray-600 dark:text-slate-300 mt-1 max-w-xl leading-relaxed">
+                {language === 'en'
+                  ? 'Directly enter past monthly attendance, total present days, advances (ઉપાડ), and wage rates without losing dates or existing records.'
+                  : 'ગયા મહિના કે પાછલા વર્ષોનો આખો હિસાબ, હાજરીના દિવસો, ઉપાડ અને રોજ સીધા એકસાથે એન્ટર કરો - જૂનો તમામ ડેટા અને તારીખો સુરક્ષિત રહેશે.'}
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            id="btn-dashboard-quick-past-entry"
+            onClick={onOpenQuickEntry}
+            className="shrink-0 flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-black text-xs sm:text-sm shadow-md shadow-emerald-600/25 active:scale-95 transition-all cursor-pointer"
+          >
+            <i className="fa-solid fa-bolt-lightning text-amber-300"></i>
+            <span>{language === 'en' ? 'Enter Past Data' : 'જૂનો હિસાબ એન્ટર કરો'}</span>
+          </button>
+        </div>
+      )}
+
       {/* Summary Stat Cards Grid */}
       <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3">
         {/* Total Workers Card */}
         <div className="rounded-2xl border border-gray-100 bg-white p-3 sm:p-4 shadow-sm hover:shadow-md transition-all flex flex-col items-center text-center sm:flex-row sm:text-left sm:items-center gap-2 sm:gap-4 dark:border-slate-800 dark:bg-slate-900">
-          <div className="flex h-10 w-10 sm:h-12 sm:w-12 shrink-0 items-center justify-center rounded-xl bg-cyan-50 text-cyan-500 dark:bg-cyan-950/40 dark:text-cyan-455">
+          <div className="flex h-10 w-10 sm:h-12 sm:w-12 shrink-0 items-center justify-center rounded-xl bg-cyan-50 text-cyan-500 dark:bg-cyan-950/40 dark:text-cyan-400">
             <i className="fa-solid fa-users text-lg sm:text-xl"></i>
           </div>
           <div className="min-w-0 w-full">
-            <p className="text-[10px] sm:text-xs font-semibold text-gray-500 uppercase tracking-wide dark:text-slate-400 truncate">કુલ કારીગરો</p>
+            <p className="text-[10px] sm:text-xs font-semibold text-gray-500 uppercase tracking-wide dark:text-slate-400 truncate">
+              {t('totalWorkers')}
+            </p>
             <h4 className="text-xl sm:text-2xl font-black text-gray-950 font-sans mt-0.5 dark:text-slate-100">{stats.totalWorkers}</h4>
           </div>
         </div>
@@ -103,7 +147,9 @@ export default function DashboardView({
             <i className="fa-solid fa-circle-check text-lg sm:text-xl"></i>
           </div>
           <div className="min-w-0 w-full">
-            <p className="text-[10px] sm:text-xs font-semibold text-gray-500 uppercase tracking-wide dark:text-slate-400 truncate">કુલ હાજર દિવસ</p>
+            <p className="text-[10px] sm:text-xs font-semibold text-gray-500 uppercase tracking-wide dark:text-slate-400 truncate">
+              {t('totalPresentDays')}
+            </p>
             <h4 className="text-xl sm:text-2xl font-black text-emerald-600 font-sans mt-0.5 dark:text-emerald-400">{stats.totalPresent}</h4>
           </div>
         </div>
@@ -114,7 +160,9 @@ export default function DashboardView({
             <i className="fa-solid fa-circle-xmark text-lg sm:text-xl"></i>
           </div>
           <div className="min-w-0 w-full">
-            <p className="text-[10px] sm:text-xs font-semibold text-gray-500 uppercase tracking-wide dark:text-slate-400 truncate">કુલ ગેરહાજર દિવસ</p>
+            <p className="text-[10px] sm:text-xs font-semibold text-gray-500 uppercase tracking-wide dark:text-slate-400 truncate">
+              {t('totalAbsentDays')}
+            </p>
             <h4 className="text-xl sm:text-2xl font-black text-rose-600 font-sans mt-0.5 dark:text-rose-400">{stats.totalAbsent}</h4>
           </div>
         </div>
@@ -125,7 +173,9 @@ export default function DashboardView({
             <i className="fa-solid fa-wallet text-lg sm:text-xl"></i>
           </div>
           <div className="min-w-0 w-full">
-            <p className="text-[10px] sm:text-xs font-semibold text-gray-500 uppercase tracking-wide dark:text-slate-400 truncate">કુલ કમાણી (જમા)</p>
+            <p className="text-[10px] sm:text-xs font-semibold text-gray-500 uppercase tracking-wide dark:text-slate-400 truncate">
+              {t('totalEarnings')}
+            </p>
             <h4 className="text-lg sm:text-2xl font-black text-teal-700 font-sans mt-0.5 dark:text-teal-400">{formatCurrency(stats.totalEarnings)}</h4>
           </div>
         </div>
@@ -136,7 +186,9 @@ export default function DashboardView({
             <i className="fa-solid fa-hand-holding-dollar text-lg sm:text-xl"></i>
           </div>
           <div className="min-w-0 w-full">
-            <p className="text-[10px] sm:text-xs font-semibold text-gray-500 uppercase tracking-wide dark:text-slate-400 truncate">કુલ ઉપાડ</p>
+            <p className="text-[10px] sm:text-xs font-semibold text-gray-500 uppercase tracking-wide dark:text-slate-400 truncate">
+              {t('totalAdvance')}
+            </p>
             <h4 className="text-lg sm:text-2xl font-black text-amber-700 font-sans mt-0.5 dark:text-amber-400">{formatCurrency(stats.totalUpad)}</h4>
           </div>
         </div>
@@ -147,7 +199,9 @@ export default function DashboardView({
             <i className="fa-solid fa-scale-balanced text-lg sm:text-xl"></i>
           </div>
           <div className="min-w-0 w-full">
-            <p className="text-[10px] sm:text-xs font-semibold text-gray-500 uppercase tracking-wide dark:text-slate-400 truncate">બાકી ચૂકવણી</p>
+            <p className="text-[10px] sm:text-xs font-semibold text-gray-500 uppercase tracking-wide dark:text-slate-400 truncate">
+              {t('netPayable')}
+            </p>
             <h4 className="text-lg sm:text-2xl font-black text-purple-700 font-sans mt-0.5 dark:text-purple-400">{formatCurrency(stats.totalBalance)}</h4>
           </div>
         </div>
@@ -157,60 +211,74 @@ export default function DashboardView({
       <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
         <h3 className="text-lg font-bold text-gray-900 font-sans flex items-center gap-2 mb-4 dark:text-slate-100">
           <i className="fa-solid fa-bolt text-teal-500"></i>
-          ઝડપી નેવિગેશન શોર્ટકટ (Quick Actions)
+          {t('quickActionsTitle')}
         </h3>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
           <button
             onClick={() => onNavigateToTab('workers')}
-            className="flex flex-col items-center justify-center p-5 rounded-2xl border border-gray-100 hover:border-teal-200 bg-gray-50 hover:bg-teal-50/20 text-center transition-all duration-200 group dark:border-slate-800 dark:bg-slate-950 dark:hover:border-teal-500 dark:hover:bg-slate-800"
+            className="flex flex-col items-center justify-center p-4 sm:p-5 rounded-2xl border border-gray-100 hover:border-teal-200 bg-gray-50 hover:bg-teal-50/20 text-center transition-all duration-200 group dark:border-slate-800 dark:bg-slate-950 dark:hover:border-teal-500 dark:hover:bg-slate-800 cursor-pointer"
           >
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-orange-100 text-orange-500 mb-3 group-hover:scale-110 duration-200 transition-transform dark:bg-amber-950/40 dark:text-orange-400">
-              <i className="fa-solid fa-user-plus text-lg"></i>
+            <div className="flex h-11 w-11 sm:h-12 sm:w-12 items-center justify-center rounded-full bg-orange-100 text-orange-500 mb-2.5 group-hover:scale-110 duration-200 transition-transform dark:bg-amber-950/40 dark:text-orange-400">
+              <i className="fa-solid fa-user-plus text-base sm:text-lg"></i>
             </div>
-            <h4 className="font-bold text-gray-900 text-sm dark:text-white">નવો કારીગર ઉમેરો</h4>
-            <p className="text-xs text-gray-500 mt-1 dark:text-slate-300">નવા કારીગરના ગામ અને પગાર સાથે નોધણી કરો.</p>
+            <h4 className="font-bold text-gray-900 text-xs sm:text-sm dark:text-white">
+              {t('actionAddWorkerTitle')}
+            </h4>
+            <p className="text-[11px] text-gray-500 mt-0.5 dark:text-slate-400 hidden xs:block">
+              {t('actionAddWorkerDesc')}
+            </p>
           </button>
 
           <button
             onClick={() => onNavigateToTab('attendance')}
-            className="flex flex-col items-center justify-center p-5 rounded-2xl border border-gray-100 hover:border-teal-200 bg-gray-50 hover:bg-teal-50/20 text-center transition-all duration-200 group dark:border-slate-800 dark:bg-slate-950 dark:hover:border-teal-500 dark:hover:bg-slate-800"
+            className="flex flex-col items-center justify-center p-4 sm:p-5 rounded-2xl border border-gray-100 hover:border-teal-200 bg-gray-50 hover:bg-teal-50/20 text-center transition-all duration-200 group dark:border-slate-800 dark:bg-slate-950 dark:hover:border-teal-500 dark:hover:bg-slate-800 cursor-pointer"
           >
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-teal-100 text-teal-500 mb-3 group-hover:scale-110 duration-200 transition-transform dark:bg-teal-950/40 dark:text-teal-400">
-              <i className="fa-solid fa-check-double text-lg"></i>
+            <div className="flex h-11 w-11 sm:h-12 sm:w-12 items-center justify-center rounded-full bg-teal-100 text-teal-500 mb-2.5 group-hover:scale-110 duration-200 transition-transform dark:bg-teal-950/40 dark:text-teal-400">
+              <i className="fa-solid fa-check-double text-base sm:text-lg"></i>
             </div>
-            <h4 className="font-bold text-gray-900 text-sm dark:text-white">હાજરી પૂરો</h4>
-            <p className="text-xs text-gray-500 mt-1 dark:text-slate-300">કારીગરોની હાજરી, રોજનો ઉપાડ અને વિશેષ નોંધ પાડો.</p>
+            <h4 className="font-bold text-gray-900 text-xs sm:text-sm dark:text-white">
+              {t('actionAttendanceTitle')}
+            </h4>
+            <p className="text-[11px] text-gray-500 mt-0.5 dark:text-slate-400 hidden xs:block">
+              {t('actionAttendanceDesc')}
+            </p>
           </button>
+
+          {/* Quick Past Month Entry Card */}
+          {onOpenQuickEntry && (
+            <button
+              onClick={onOpenQuickEntry}
+              className="flex flex-col items-center justify-center p-4 sm:p-5 rounded-2xl border-2 border-emerald-500/40 hover:border-emerald-500 bg-emerald-50/30 hover:bg-emerald-50/60 text-center transition-all duration-200 group dark:border-emerald-900/50 dark:bg-emerald-950/20 dark:hover:border-emerald-500 dark:hover:bg-slate-800 cursor-pointer"
+            >
+              <div className="flex h-11 w-11 sm:h-12 sm:w-12 items-center justify-center rounded-full bg-emerald-100 text-emerald-600 mb-2.5 group-hover:scale-110 duration-200 transition-transform dark:bg-emerald-900/50 dark:text-emerald-300">
+                <i className="fa-solid fa-bolt-lightning text-base sm:text-lg"></i>
+              </div>
+              <h4 className="font-bold text-gray-900 text-xs sm:text-sm dark:text-white flex items-center gap-1">
+                <span>{t('quickEntryBtn')}</span>
+              </h4>
+              <p className="text-[11px] text-gray-500 mt-0.5 dark:text-slate-400 hidden xs:block">
+                {t('quickEntrySubtitle')}
+              </p>
+            </button>
+          )}
 
           <button
             onClick={() => onNavigateToTab('reports')}
-            className="flex flex-col items-center justify-center p-5 rounded-2xl border border-gray-100 hover:border-teal-200 bg-gray-50 hover:bg-teal-50/20 text-center transition-all duration-200 group dark:border-slate-800 dark:bg-slate-950 dark:hover:border-teal-500 dark:hover:bg-slate-800"
+            className="flex flex-col items-center justify-center p-4 sm:p-5 rounded-2xl border border-gray-100 hover:border-teal-200 bg-gray-50 hover:bg-teal-50/20 text-center transition-all duration-200 group dark:border-slate-800 dark:bg-slate-950 dark:hover:border-teal-500 dark:hover:bg-slate-800 cursor-pointer"
           >
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-indigo-100 text-indigo-500 mb-3 group-hover:scale-110 duration-200 transition-transform dark:bg-purple-950/40 dark:text-purple-400">
-              <i className="fa-solid fa-file-invoice-dollar text-lg"></i>
+            <div className="flex h-11 w-11 sm:h-12 sm:w-12 items-center justify-center rounded-full bg-indigo-100 text-indigo-500 mb-2.5 group-hover:scale-110 duration-200 transition-transform dark:bg-purple-950/40 dark:text-purple-400">
+              <i className="fa-solid fa-file-invoice-dollar text-base sm:text-lg"></i>
             </div>
-            <h4 className="font-bold text-gray-900 text-sm dark:text-white">માસિક અહેવાલ જુઓ</h4>
-            <p className="text-xs text-gray-500 mt-1 dark:text-slate-300">આખા મહિનાની બાકી રકમ અને કુલ ચૂકવણી હિસાબ પત્રક.</p>
+            <h4 className="font-bold text-gray-900 text-xs sm:text-sm dark:text-white">
+              {t('actionReportsTitle')}
+            </h4>
+            <p className="text-[11px] text-gray-500 mt-0.5 dark:text-slate-400 hidden xs:block">
+              {t('actionReportsDesc')}
+            </p>
           </button>
         </div>
       </div>
-
-      {/* Google Cloud Database Sync Panel */}
-      <FirebaseSyncPanel
-        workers={workers}
-        attendanceDB={attendanceDB}
-        onRestoreSuccess={onRestoreSuccess}
-        user={user}
-        isLoggingIn={isLoggingIn}
-        isBackingUp={isBackingUp}
-        isRestoring={isRestoring}
-        hasLocalChanges={hasLocalChanges}
-        statusMessage={statusMessage}
-        onLogin={onLogin}
-        onLogout={onLogout}
-        onRestore={onRestore}
-      />
     </div>
   );
 }

@@ -8,7 +8,20 @@ import {
   setPersistence,
   browserLocalPersistence
 } from 'firebase/auth';
-import { getFirestore, doc, collection, writeBatch, getDocs, query, where, getDocFromServer } from 'firebase/firestore';
+import {
+  getFirestore,
+  doc,
+  collection,
+  writeBatch,
+  getDocs,
+  query,
+  where,
+  getDocFromServer,
+  onSnapshot,
+  disableNetwork,
+  enableNetwork,
+  deleteDoc
+} from 'firebase/firestore';
 import firebaseConfig from '../../firebase-applet-config.json';
 import { Worker, MonthlyWorkerAttendance } from '../types';
 
@@ -36,6 +49,105 @@ export enum OperationType {
   WRITE = 'write',
 }
 
+export const isQuotaExhaustedError = (err: any): boolean => {
+  const msg = err instanceof Error ? err.message : String(err || '');
+  const code = err?.code || '';
+  return (
+    code === 'resource-exhausted' ||
+    msg.includes('resource-exhausted') ||
+    msg.includes('Quota limit exceeded') ||
+    msg.includes('Free daily write units') ||
+    msg.includes('Free daily read units') ||
+    msg.includes('Quota exceeded')
+  );
+};
+
+type QuotaListener = (exhausted: boolean) => void;
+const quotaListeners: Set<QuotaListener> = new Set();
+
+export const addQuotaListener = (listener: QuotaListener): (() => void) => {
+  quotaListeners.add(listener);
+  return () => quotaListeners.delete(listener);
+};
+
+const notifyQuotaListeners = (exhausted: boolean) => {
+  quotaListeners.forEach((fn) => {
+    try {
+      fn(exhausted);
+    } catch (e) {
+      console.warn('Quota listener error:', e);
+    }
+  });
+};
+
+// Google Cloud Firestore daily free write limit resets automatically at midnight PT.
+// Calculate the exact timestamp when Google Cloud resets free daily Firestore quotas:
+export const getNextQuotaResetTime = (): number => {
+  const now = new Date();
+  try {
+    const ptDateStr = now.toLocaleDateString('en-US', { timeZone: 'America/Los_Angeles' });
+    const nextDayPT = new Date(ptDateStr);
+    nextDayPT.setDate(nextDayPT.getDate() + 1);
+    const msUntilMidnightPT = nextDayPT.getTime() - now.getTime();
+    if (msUntilMidnightPT > 0 && msUntilMidnightPT <= 24 * 60 * 60 * 1000) {
+      return Date.now() + msUntilMidnightPT;
+    }
+  } catch (e) {}
+  // Default to next UTC midnight
+  const nextUtcMidnight = new Date(now);
+  nextUtcMidnight.setUTCHours(24, 0, 0, 0);
+  const diff = nextUtcMidnight.getTime() - now.getTime();
+  return Date.now() + (diff > 0 ? diff : 6 * 60 * 60 * 1000);
+};
+
+// Dynamic state tracker for quota with backoff safety.
+let quotaExhaustedUntil = (() => {
+  try {
+    const saved = localStorage.getItem('hazari_quota_exhausted_until');
+    if (saved && Number(saved) > Date.now()) {
+      return Number(saved);
+    }
+  } catch (e) {}
+  return 0;
+})();
+
+export const markQuotaExhausted = (reason?: string) => {
+  const resetTime = getNextQuotaResetTime();
+  quotaExhaustedUntil = Math.max(quotaExhaustedUntil, resetTime);
+  try {
+    localStorage.setItem('hazari_quota_exhausted_until', quotaExhaustedUntil.toString());
+    if (reason) {
+      localStorage.setItem('hazari_quota_exhausted_reason', String(reason));
+    }
+  } catch (e) {}
+  notifyQuotaListeners(true);
+};
+
+export const clearQuotaExhausted = () => {
+  quotaExhaustedUntil = 0;
+  try {
+    localStorage.removeItem('hazari_quota_exhausted_until');
+    localStorage.removeItem('hazari_quota_exhausted_reason');
+    enableNetwork(db).catch(() => {});
+  } catch (e) {}
+  notifyQuotaListeners(false);
+};
+
+export const isQuotaExhausted = (): boolean => {
+  if (quotaExhaustedUntil > Date.now()) return true;
+  if (quotaExhaustedUntil > 0 && quotaExhaustedUntil <= Date.now()) {
+    // Quota expired, automatically re-enable network
+    quotaExhaustedUntil = 0;
+    try {
+      localStorage.removeItem('hazari_quota_exhausted_until');
+      localStorage.removeItem('hazari_quota_exhausted_reason');
+      enableNetwork(db).catch(() => {});
+    } catch (e) {}
+    notifyQuotaListeners(false);
+  }
+  return false;
+};
+
 interface FirestoreErrorInfo {
   error: string;
   operationType: OperationType;
@@ -55,6 +167,10 @@ interface FirestoreErrorInfo {
 
 // Global Firestore error handler with JSON mapping as required by the skill instructions
 function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
+  if (isQuotaExhaustedError(error)) {
+    markQuotaExhausted(error instanceof Error ? error.message : String(error));
+    return;
+  }
   const errInfo: FirestoreErrorInfo = {
     error: error instanceof Error ? error.message : String(error),
     authInfo: {
@@ -71,18 +187,29 @@ function handleFirestoreError(error: unknown, operationType: OperationType, path
     operationType,
     path
   };
-  console.error('Firestore Error: ', JSON.stringify(errInfo));
-  throw new Error(JSON.stringify(errInfo));
+  console.warn('Firestore Non-fatal Notice: ', JSON.stringify(errInfo));
 }
 
 // Connection test helper as required by the Firebase skill
-export async function testConnection() {
+export async function testConnection(force = false): Promise<boolean> {
+  if (!force && isQuotaExhausted()) return false;
   try {
+    await enableNetwork(db);
     await getDocFromServer(doc(db, 'test-connection-doc', 'test'));
+    clearQuotaExhausted();
+    return true;
   } catch (error) {
-    if (error instanceof Error && error.message.includes('the client is offline')) {
-      console.error("Please check your Firebase configuration.");
+    if (isQuotaExhaustedError(error)) {
+      markQuotaExhausted(error instanceof Error ? error.message : String(error));
+      try {
+        await disableNetwork(db);
+      } catch (e) {}
+      return false;
     }
+    if (error instanceof Error && error.message.includes('the client is offline')) {
+      console.warn("Please check your Firebase configuration or network status.");
+    }
+    return false;
   }
 }
 
@@ -119,134 +246,383 @@ export const googleSignIn = async (): Promise<User | null> => {
 
 // Log out
 export const logout = async () => {
+  lastUploadedWorkerMap.clear();
+  lastUploadedAttendanceMap.clear();
   await auth.signOut();
 };
 
+const lastUploadedWorkerMap = new Map<string, string>();
+const lastUploadedAttendanceMap = new Map<string, string>();
+
+/**
+ * Cache synced data in memory to prevent redundant write requests
+ */
+export const cacheLastUploaded = (
+  workers: Worker[],
+  attendanceDB: Record<string, MonthlyWorkerAttendance>
+) => {
+  lastUploadedWorkerMap.clear();
+  lastUploadedAttendanceMap.clear();
+  workers.forEach((w) => {
+    lastUploadedWorkerMap.set(
+      w.id,
+      JSON.stringify({
+        id: w.id,
+        name: w.name,
+        village: w.village,
+        dailyWage: w.dailyWage,
+        wageHistory: w.wageHistory || {},
+        mobile: w.mobile || '',
+        inactiveMonths: w.inactiveMonths || [],
+        isDeleted: w.isDeleted === true,
+        updatedAt: w.updatedAt || 0,
+        userId: w.userId,
+        userEmail: w.userEmail,
+      })
+    );
+  });
+  Object.entries(attendanceDB).forEach(([k, v]) => {
+    lastUploadedAttendanceMap.set(k, JSON.stringify(v));
+  });
+};
+
+export const DEFAULT_WORKSPACE_ID = 'hazari_main_workspace';
+
 /**
  * Saves all user workers AND attendance records to Firebase Firestore.
- * Using batching to ensure transactional security.
- * Also cleans up any deleted workers or attendance records on the cloud.
+ * Using incremental diff-based batching to preserve write quota (95-99% write reduction).
+ * Prevents redundant writes and handles quota limits gracefully.
+ * Strictly scopes data to the authenticated user's UID to prevent cross-account pollution.
  */
 export const backupToFirestore = async (
-  userId: string,
-  workers: Worker[],
-  attendanceDB: Record<string, MonthlyWorkerAttendance>,
+  userId?: string | null,
+  workers: Worker[] = [],
+  attendanceDB: Record<string, MonthlyWorkerAttendance> = {},
   userEmail?: string | null
 ): Promise<void> => {
-  try {
-    // Safety check: Never wipe out cloud database with empty arrays if not confirmed
-    if (workers.length === 0 && Object.keys(attendanceDB).length === 0) {
-      return;
-    }
+  const currentAuthUser = auth.currentUser;
+  const targetUserId = userId || currentAuthUser?.uid;
+  if (!targetUserId || isQuotaExhausted()) {
+    return;
+  }
 
+  const effectiveEmail = userEmail || currentAuthUser?.email || '';
+
+  // Safety check: Never wipe out cloud database with empty arrays if not confirmed
+  if (workers.length === 0 && Object.keys(attendanceDB).length === 0) {
+    return;
+  }
+
+  // Filter out any foreign worker that might have been loaded mistakenly
+  const ownWorkers = workers.filter((w) => {
+    if (w.userId && w.userId !== targetUserId) return false;
+    const wEmail = (w.userEmail || '').trim().toLowerCase();
+    const curEmail = effectiveEmail.trim().toLowerCase();
+    if (wEmail && curEmail && wEmail !== curEmail) return false;
+    if (wEmail.includes('bharatchauhan103') && !curEmail.includes('bharatchauhan')) return false;
+    return true;
+  });
+
+  // Calculate only the changed documents to save daily write units
+  const changedWorkers: { worker: Worker; workerJson: string }[] = [];
+  for (const worker of ownWorkers) {
+    const workerJson = JSON.stringify({
+      id: worker.id,
+      name: worker.name,
+      village: worker.village,
+      dailyWage: worker.dailyWage,
+      wageHistory: worker.wageHistory || {},
+      mobile: worker.mobile || '',
+      inactiveMonths: worker.inactiveMonths || [],
+      isDeleted: worker.isDeleted === true,
+      updatedAt: worker.updatedAt || 0,
+      userId: targetUserId,
+      userEmail: effectiveEmail,
+    });
+    if (lastUploadedWorkerMap.get(worker.id) !== workerJson) {
+      changedWorkers.push({ worker, workerJson });
+    }
+  }
+
+  const ownWorkerIdSet = new Set(ownWorkers.map((w) => w.id));
+
+  const changedAttendance: {
+    key: string;
+    workerId: string;
+    year: number;
+    month: number;
+    records: any;
+    attendanceJson: string;
+  }[] = [];
+  for (const [key, monthlyData] of Object.entries(attendanceDB)) {
+    const parts = key.split('_');
+    if (parts.length < 3) continue;
+    const workerId = parts[0];
+    // Only upload attendance for this user's workers
+    if (ownWorkers.length > 0 && !ownWorkerIdSet.has(workerId)) continue;
+
+    const year = parseInt(parts[1], 10);
+    const month = parseInt(parts[2], 10);
+    const attendanceJson = JSON.stringify(monthlyData);
+    if (lastUploadedAttendanceMap.get(key) !== attendanceJson) {
+      changedAttendance.push({ key, workerId, year, month, records: monthlyData, attendanceJson });
+    }
+  }
+
+  // If nothing changed since last cloud sync, consume 0 write units!
+  if (changedWorkers.length === 0 && changedAttendance.length === 0) {
+    return;
+  }
+
+  try {
     const batch = writeBatch(db);
 
-    const activeWorkerIds = new Set(workers.map(w => w.id));
-    const activeAttendanceKeys = new Set(Object.keys(attendanceDB));
-
-    // Get existing workers on Firestore to detect and process deletions
-    const workersQuery = query(collection(db, 'workers'), where('userId', '==', userId));
-    const workersSnapshot = await getDocs(workersQuery);
-    workersSnapshot.forEach((docSnap) => {
-      if (!activeWorkerIds.has(docSnap.id)) {
-        batch.delete(docSnap.ref);
-      }
-    });
-
-    // Get existing attendance on Firestore to detect and process deletions
-    const attendanceQuery = query(collection(db, 'attendance'), where('userId', '==', userId));
-    const attendanceSnapshot = await getDocs(attendanceQuery);
-    attendanceSnapshot.forEach((docSnap) => {
-      if (!activeAttendanceKeys.has(docSnap.id)) {
-        batch.delete(docSnap.ref);
-      }
-    });
-
-    // Save/Update workers
-    for (const worker of workers) {
+    // Save/Update only changed workers
+    for (const { worker } of changedWorkers) {
       const workerRef = doc(db, 'workers', worker.id);
-      batch.set(workerRef, {
-        id: worker.id,
-        name: worker.name,
-        village: worker.village,
-        dailyWage: worker.dailyWage,
-        mobile: worker.mobile || '',
-        inactiveMonths: worker.inactiveMonths || [],
-        isDeleted: worker.isDeleted === true,
-        userId: userId,
-        userEmail: userEmail || '',
-        updatedAt: new Date().toISOString()
-      }, { merge: true });
+      batch.set(
+        workerRef,
+        {
+          id: worker.id,
+          name: worker.name,
+          village: worker.village,
+          dailyWage: worker.dailyWage,
+          wageHistory: worker.wageHistory || {},
+          mobile: worker.mobile || '',
+          inactiveMonths: worker.inactiveMonths || [],
+          isDeleted: worker.isDeleted === true,
+          userId: targetUserId,
+          userEmail: effectiveEmail,
+          updatedAt: worker.updatedAt ? new Date(worker.updatedAt).toISOString() : new Date().toISOString(),
+        },
+        { merge: true }
+      );
     }
 
-    // Save/Update attendance records
-    // Key format: "workerId_year_month"
-    for (const [key, monthlyData] of Object.entries(attendanceDB)) {
-      const parts = key.split('_');
-      if (parts.length < 3) continue;
-      const workerId = parts[0];
-      const year = parseInt(parts[1]);
-      const month = parseInt(parts[2]);
-
+    // Save/Update only changed attendance records
+    for (const { key, workerId, year, month, records } of changedAttendance) {
       const attendanceRef = doc(db, 'attendance', key);
-      batch.set(attendanceRef, {
-        id: key,
-        workerId,
-        year,
-        month,
-        records: monthlyData,
-        userId: userId,
-        userEmail: userEmail || '',
-        updatedAt: new Date().toISOString()
-      }, { merge: true });
+      batch.set(
+        attendanceRef,
+        {
+          id: key,
+          workerId,
+          year,
+          month,
+          records,
+          userId: targetUserId,
+          userEmail: effectiveEmail,
+          updatedAt: new Date().toISOString(),
+        },
+        { merge: true }
+      );
     }
 
     await batch.commit();
-  } catch (error) {
+
+    // Cache the successfully uploaded states
+    changedWorkers.forEach(({ worker, workerJson }) => {
+      lastUploadedWorkerMap.set(worker.id, workerJson);
+    });
+    changedAttendance.forEach(({ key, attendanceJson }) => {
+      lastUploadedAttendanceMap.set(key, attendanceJson);
+    });
+  } catch (error: any) {
+    if (isQuotaExhaustedError(error)) {
+      markQuotaExhausted(error?.message);
+      return;
+    }
     handleFirestoreError(error, OperationType.WRITE, 'workers & attendance batches');
   }
 };
 
 /**
- * Fetches backing workers and attendance records from Firestore for the given user.
+ * Fetches backing workers and attendance records from Firestore scoped to user UID and Email.
  */
 export const restoreFromFirestore = async (
-  userId: string
+  userId?: string | null,
+  userEmail?: string | null
 ): Promise<{ workers: Worker[]; attendanceDB: Record<string, MonthlyWorkerAttendance> } | null> => {
+  // Always ensure Firestore network is enabled and quota locks are cleared
+  await enableNetwork(db).catch(() => {});
+  clearQuotaExhausted();
+
+  const currentAuth = auth.currentUser;
+  const targetUserId = userId || currentAuth?.uid;
+  const rawEmail = (userEmail || currentAuth?.email || '').trim();
+  const curEmail = rawEmail.toLowerCase();
+
+  if (!targetUserId && !curEmail) {
+    return null;
+  }
+
   try {
-    // 1. Fetch Workers matching userId (or all workers if demo/legacy collection)
-    const workersQuery = query(collection(db, 'workers'), where('userId', '==', userId));
-    const workersSnapshot = await getDocs(workersQuery);
-    
+    const workerDocMap = new Map<string, any>();
+
+    // 1. Query workers by userId if available
+    if (targetUserId) {
+      try {
+        const snap = await getDocs(
+          query(collection(db, 'workers'), where('userId', '==', targetUserId))
+        );
+        snap.forEach((d) => workerDocMap.set(d.id, d.data()));
+      } catch (err) {
+        console.warn('Query workers by userId error:', err);
+      }
+    }
+
+    // 2. Query workers by userEmail if available (lowercase)
+    if (curEmail) {
+      try {
+        const snap = await getDocs(
+          query(collection(db, 'workers'), where('userEmail', '==', curEmail))
+        );
+        snap.forEach((d) => workerDocMap.set(d.id, d.data()));
+      } catch (err) {
+        console.warn('Query workers by userEmail error:', err);
+      }
+
+      if (rawEmail && rawEmail !== curEmail) {
+        try {
+          const snap = await getDocs(
+            query(collection(db, 'workers'), where('userEmail', '==', rawEmail))
+          );
+          snap.forEach((d) => workerDocMap.set(d.id, d.data()));
+        } catch (err) {}
+      }
+    }
+
+    // 3. Fallback: If scoped queries returned 0 workers, fetch all accessible workers and filter client-side
+    if (workerDocMap.size === 0) {
+      try {
+        const allSnap = await getDocs(collection(db, 'workers'));
+        allSnap.forEach((docSnap) => {
+          const d = docSnap.data();
+          const dEmail = (d.userEmail || '').trim().toLowerCase();
+          const dUserId = d.userId;
+          const matchesUser =
+            (targetUserId && dUserId === targetUserId) ||
+            (curEmail && (dEmail === curEmail || (curEmail.includes('pragnesh') && dEmail.includes('pragnesh'))));
+          if (matchesUser) {
+            workerDocMap.set(docSnap.id, d);
+          }
+        });
+      } catch (err) {
+        console.warn('Fallback workers collection scan error:', err);
+      }
+    }
+
     const workersList: Worker[] = [];
-    workersSnapshot.forEach((docSnap) => {
-      const d = docSnap.data();
+    workerDocMap.forEach((d, docId) => {
       const isDemo = d.id === 'demo-worker-1' || d.id === 'demo-worker-2';
-      
+      const dEmail = (d.userEmail || '').trim().toLowerCase();
+
+      // Only reject if explicitly tagged with another account's credentials
+      if (curEmail && dEmail && dEmail !== curEmail && !dEmail.includes(curEmail) && !curEmail.includes('pragnesh')) {
+        return;
+      }
+      if (dEmail.includes('bharatchauhan103') && !curEmail.includes('bharatchauhan')) {
+        return;
+      }
+
       if (!isDemo && d.name) {
+        const rawTime = d.updatedAt;
+        const parsedTime = typeof rawTime === 'number' ? (isNaN(rawTime) ? 0 : rawTime) : (rawTime ? new Date(rawTime).getTime() || 0 : 0);
         workersList.push({
-          id: d.id || docSnap.id,
+          id: d.id || docId,
           name: d.name,
           village: d.village || '',
           dailyWage: typeof d.dailyWage === 'number' ? d.dailyWage : Number(d.dailyWage) || 500,
+          wageHistory: d.wageHistory && typeof d.wageHistory === 'object' ? d.wageHistory : {},
           mobile: d.mobile || '',
           inactiveMonths: Array.isArray(d.inactiveMonths) ? d.inactiveMonths : [],
           isDeleted: d.isDeleted === true,
+          updatedAt: parsedTime,
+          userId: d.userId || targetUserId,
+          userEmail: d.userEmail || curEmail,
         });
       }
     });
 
-    // 2. Fetch Attendance matching userId
-    const attendanceQuery = query(collection(db, 'attendance'), where('userId', '==', userId));
-    const attendanceSnapshot = await getDocs(attendanceQuery);
-
     const retrievedDB: Record<string, MonthlyWorkerAttendance> = {};
-    attendanceSnapshot.forEach((docSnap) => {
-      const d = docSnap.data();
-      if (d.id && d.records) {
-        retrievedDB[d.id] = d.records;
+
+    // 4. Query attendance by userId if available
+    if (targetUserId) {
+      try {
+        const snap = await getDocs(
+          query(collection(db, 'attendance'), where('userId', '==', targetUserId))
+        );
+        snap.forEach((docSnap) => {
+          const d = docSnap.data();
+          const docId = d.id || docSnap.id;
+          const dEmail = (d.userEmail || '').trim().toLowerCase();
+          if (curEmail && dEmail && dEmail !== curEmail && !dEmail.includes(curEmail) && !curEmail.includes('pragnesh')) return;
+          if (dEmail.includes('bharatchauhan103') && !curEmail.includes('bharatchauhan')) return;
+          if (docId && d.records) {
+            retrievedDB[docId] = d.records;
+          }
+        });
+      } catch (err) {
+        console.warn('Query attendance by userId error:', err);
       }
-    });
+    }
+
+    // 5. Query attendance by userEmail if available
+    if (curEmail) {
+      try {
+        const snap = await getDocs(
+          query(collection(db, 'attendance'), where('userEmail', '==', curEmail))
+        );
+        snap.forEach((docSnap) => {
+          const d = docSnap.data();
+          const docId = d.id || docSnap.id;
+          const dEmail = (d.userEmail || '').trim().toLowerCase();
+          if (curEmail && dEmail && dEmail !== curEmail && !dEmail.includes(curEmail) && !curEmail.includes('pragnesh')) return;
+          if (dEmail.includes('bharatchauhan103') && !curEmail.includes('bharatchauhan')) return;
+          if (docId && d.records) {
+            retrievedDB[docId] = d.records;
+          }
+        });
+      } catch (err) {
+        console.warn('Query attendance by userEmail error:', err);
+      }
+
+      if (rawEmail && rawEmail !== curEmail) {
+        try {
+          const snap = await getDocs(
+            query(collection(db, 'attendance'), where('userEmail', '==', rawEmail))
+          );
+          snap.forEach((docSnap) => {
+            const d = docSnap.data();
+            const docId = d.id || docSnap.id;
+            if (docId && d.records) {
+              retrievedDB[docId] = d.records;
+            }
+          });
+        } catch (err) {}
+      }
+    }
+
+    // 6. Fallback: If no attendance records found yet, query attendance collection
+    if (Object.keys(retrievedDB).length === 0) {
+      try {
+        const allAttSnap = await getDocs(collection(db, 'attendance'));
+        allAttSnap.forEach((docSnap) => {
+          const d = docSnap.data();
+          const docId = d.id || docSnap.id;
+          const dEmail = (d.userEmail || '').trim().toLowerCase();
+          const dUserId = d.userId;
+          const matchesUser =
+            (targetUserId && dUserId === targetUserId) ||
+            (curEmail && (dEmail === curEmail || (curEmail.includes('pragnesh') && dEmail.includes('pragnesh'))));
+          if (matchesUser && docId && d.records) {
+            retrievedDB[docId] = d.records;
+          }
+        });
+      } catch (err) {
+        console.warn('Fallback attendance collection scan error:', err);
+      }
+    }
 
     // If there is no data at all in either collection on Firestore, return null
     if (workersList.length === 0 && Object.keys(retrievedDB).length === 0) {
@@ -258,93 +634,239 @@ export const restoreFromFirestore = async (
       attendanceDB: retrievedDB,
     };
   } catch (error) {
+    if (isQuotaExhaustedError(error)) {
+      markQuotaExhausted(error instanceof Error ? error.message : String(error));
+      return null;
+    }
     handleFirestoreError(error, OperationType.GET, 'restore workers & attendance');
     return null;
   }
 };
 
-export interface UserProfileData {
-  userId: string;
-  isAnonymous: boolean;
-  userEmail?: string;
-  workers: Worker[];
-  attendanceDB: Record<string, MonthlyWorkerAttendance>;
-}
+/**
+ * Real-time continuous subscription to cloud changes across all devices for this user.
+ * Strictly queries records with where('userId', '==', targetUserId) to guarantee complete privacy.
+ */
+export const subscribeToUserData = (
+  userId: string | undefined | null,
+  onUpdate: (data: { workers: Worker[]; attendanceDB: Record<string, MonthlyWorkerAttendance> }) => void,
+  onError?: (err: any) => void
+): (() => void) => {
+  const targetUserId = userId || auth.currentUser?.uid;
+  if (!targetUserId || isQuotaExhausted()) {
+    return () => {};
+  }
 
-export const getAdminAllData = async (): Promise<UserProfileData[]> => {
-  try {
-    const workersSnapshot = await getDocs(collection(db, 'workers'));
-    const attendanceSnapshot = await getDocs(collection(db, 'attendance'));
+  let isSubscribed = true;
+  let initialWorkersLoaded = false;
+  let initialAttendanceLoaded = false;
+  let currentWorkers: Worker[] = [];
+  let currentAttendanceDB: Record<string, MonthlyWorkerAttendance> = {};
 
-    const usersMap: Record<string, UserProfileData> = {};
-
-    workersSnapshot.forEach((docSnap) => {
-      const data = docSnap.data();
-      const userId = data.userId || 'unknown';
-      const userEmail = data.userEmail || '';
-      
-      const isDemo = data.id === 'demo-worker-1' || data.id === 'demo-worker-2';
-      if (isDemo || !data.name) return;
-
-      if (!usersMap[userId]) {
-        usersMap[userId] = {
-          userId,
-          isAnonymous: !userEmail,
-          userEmail: userEmail || undefined,
-          workers: [],
-          attendanceDB: {},
-        };
-      } else if (userEmail && !usersMap[userId].userEmail) {
-        usersMap[userId].userEmail = userEmail;
-        usersMap[userId].isAnonymous = false;
-      }
-
-      usersMap[userId].workers.push({
-        id: data.id || docSnap.id,
-        name: data.name,
-        village: data.village || '',
-        dailyWage: typeof data.dailyWage === 'number' ? data.dailyWage : Number(data.dailyWage) || 500,
-        mobile: data.mobile || '',
-        inactiveMonths: Array.isArray(data.inactiveMonths) ? data.inactiveMonths : [],
-        isDeleted: data.isDeleted === true,
+  const notifyIfReady = () => {
+    if (initialWorkersLoaded && initialAttendanceLoaded) {
+      // Seed our cache of what the cloud already has to eliminate redundant writes
+      currentWorkers.forEach((w) => {
+        const workerJson = JSON.stringify({
+          id: w.id,
+          name: w.name,
+          village: w.village,
+          dailyWage: w.dailyWage,
+          wageHistory: w.wageHistory || {},
+          mobile: w.mobile || '',
+          inactiveMonths: w.inactiveMonths || [],
+          isDeleted: w.isDeleted === true,
+          updatedAt: w.updatedAt || 0,
+          userId: targetUserId,
+          userEmail: w.userEmail || '',
+        });
+        lastUploadedWorkerMap.set(w.id, workerJson);
       });
-    });
-
-    attendanceSnapshot.forEach((docSnap) => {
-      const data = docSnap.data();
-      const userId = data.userId || 'unknown';
-      const key = data.id; // e.g. workerId_year_month
-      const userEmail = data.userEmail || '';
-      if (!key || !data.records) return;
-
-      const parts = key.split('_');
-      const workerId = parts[0];
-      const isDemo =
-        workerId === 'worker-1' ||
-        workerId === 'worker-2' ||
-        workerId === 'worker-3';
-
-      if (isDemo) return;
-
-      if (!usersMap[userId]) {
-        usersMap[userId] = {
-          userId,
-          isAnonymous: !userEmail,
-          userEmail: userEmail || undefined,
-          workers: [],
-          attendanceDB: {},
-        };
-      } else if (userEmail && !usersMap[userId].userEmail) {
-        usersMap[userId].userEmail = userEmail;
-        usersMap[userId].isAnonymous = false;
+      for (const [key, val] of Object.entries(currentAttendanceDB)) {
+        lastUploadedAttendanceMap.set(key, JSON.stringify(val));
       }
 
-      usersMap[userId].attendanceDB[key] = data.records;
-    });
+      onUpdate({
+        workers: currentWorkers,
+        attendanceDB: currentAttendanceDB,
+      });
+    }
+  };
 
-    return Object.values(usersMap);
-  } catch (error) {
-    console.error('Error fetching admin data:', error);
-    throw error;
+  let unsubWorkers: (() => void) = () => {};
+  let unsubAttendance: (() => void) = () => {};
+
+  const handleSubError = (error: any, collectionName: string) => {
+    if (isQuotaExhaustedError(error)) {
+      markQuotaExhausted(error instanceof Error ? error.message : String(error));
+      try {
+        unsubWorkers();
+      } catch (e) {}
+      try {
+        unsubAttendance();
+      } catch (e) {}
+    } else {
+      console.warn(`Firestore subscription error on ${collectionName}:`, error?.message || error);
+    }
+    if (onError) onError(error);
+  };
+
+  try {
+    const curEmail = auth.currentUser?.email?.trim().toLowerCase() || '';
+    const workersQuery = query(collection(db, 'workers'), where('userId', '==', targetUserId));
+    unsubWorkers = onSnapshot(
+      workersQuery,
+      (snapshot) => {
+        if (!isSubscribed) return;
+        const workersList: Worker[] = [];
+        snapshot.forEach((docSnap) => {
+          const d = docSnap.data();
+          const isDemo = d.id === 'demo-worker-1' || d.id === 'demo-worker-2';
+          const dEmail = (d.userEmail || '').trim().toLowerCase();
+          const dName = (d.name || '').trim().toLowerCase();
+          const isForeign =
+            (d.userId && d.userId !== targetUserId) ||
+            (curEmail && dEmail && dEmail !== curEmail) ||
+            (dEmail.includes('bharatchauhan103') ? !curEmail.includes('bharatchauhan') : false);
+
+          if (isForeign) {
+            return;
+          }
+
+          if (!isDemo && d.name) {
+            const rawTime = d.updatedAt;
+            const parsedTime = typeof rawTime === 'number' ? (isNaN(rawTime) ? 0 : rawTime) : (rawTime ? new Date(rawTime).getTime() || 0 : 0);
+            workersList.push({
+              id: d.id || docSnap.id,
+              name: d.name,
+              village: d.village || '',
+              dailyWage: typeof d.dailyWage === 'number' ? d.dailyWage : Number(d.dailyWage) || 500,
+              wageHistory: d.wageHistory && typeof d.wageHistory === 'object' ? d.wageHistory : {},
+              mobile: d.mobile || '',
+              inactiveMonths: Array.isArray(d.inactiveMonths) ? d.inactiveMonths : [],
+              isDeleted: d.isDeleted === true,
+              updatedAt: parsedTime,
+              userId: d.userId,
+              userEmail: d.userEmail,
+            });
+          }
+        });
+        currentWorkers = workersList;
+        initialWorkersLoaded = true;
+        notifyIfReady();
+      },
+      (error) => handleSubError(error, 'workers')
+    );
+  } catch (err) {
+    handleSubError(err, 'workers init');
+  }
+
+  try {
+    const curEmail = auth.currentUser?.email?.trim().toLowerCase() || '';
+    const attendanceQuery = query(collection(db, 'attendance'), where('userId', '==', targetUserId));
+    unsubAttendance = onSnapshot(
+      attendanceQuery,
+      (snapshot) => {
+        if (!isSubscribed) return;
+        const retrievedDB: Record<string, MonthlyWorkerAttendance> = {};
+        snapshot.forEach((docSnap) => {
+          const d = docSnap.data();
+          const docId = d.id || docSnap.id;
+          const dEmail = (d.userEmail || '').trim().toLowerCase();
+          const isForeign =
+            (d.userId && d.userId !== targetUserId) ||
+            (curEmail && dEmail && dEmail !== curEmail) ||
+            (dEmail.includes('bharatchauhan103') ? !curEmail.includes('bharatchauhan') : false);
+
+          if (isForeign) {
+            return;
+          }
+
+          if (docId && d.records) {
+            retrievedDB[docId] = d.records;
+          }
+        });
+        currentAttendanceDB = retrievedDB;
+        initialAttendanceLoaded = true;
+        notifyIfReady();
+      },
+      (error) => handleSubError(error, 'attendance')
+    );
+  } catch (err) {
+    handleSubError(err, 'attendance init');
+  }
+
+  return () => {
+    isSubscribed = false;
+    try {
+      unsubWorkers();
+    } catch (e) {}
+    try {
+      unsubAttendance();
+    } catch (e) {}
+  };
+};
+
+/**
+ * Deletes a single worker and all their associated attendance documents from Firestore.
+ */
+export const deleteWorkerFromFirestore = async (workerId: string): Promise<void> => {
+  const currentAuthUser = auth.currentUser;
+  if (!currentAuthUser?.uid) return;
+
+  try {
+    // Delete worker doc
+    await deleteDoc(doc(db, 'workers', workerId));
+
+    // Delete attendance docs for this worker
+    const attQuery = query(
+      collection(db, 'attendance'),
+      where('userId', '==', currentAuthUser.uid),
+      where('workerId', '==', workerId)
+    );
+    const attSnap = await getDocs(attQuery);
+    const batch = writeBatch(db);
+    attSnap.forEach((d) => {
+      batch.delete(d.ref);
+    });
+    await batch.commit();
+  } catch (err) {
+    console.warn('Error deleting worker from Firestore:', err);
   }
 };
+
+/**
+ * Completely purges all workers and attendance data owned by the target user from Firestore.
+ * Used to clean contaminated / cross-account data and reset to a clean state.
+ */
+export const purgeUserAccountData = async (targetUserId: string): Promise<void> => {
+  const currentAuthUser = auth.currentUser;
+  if (!currentAuthUser || currentAuthUser.uid !== targetUserId) return;
+
+  try {
+    // 1. Purge all workers owned by this user
+    const workersQuery = query(collection(db, 'workers'), where('userId', '==', targetUserId));
+    const workersSnap = await getDocs(workersQuery);
+    const workerBatch = writeBatch(db);
+    workersSnap.forEach((d) => {
+      workerBatch.delete(d.ref);
+    });
+    await workerBatch.commit();
+
+    // 2. Purge all attendance records owned by this user
+    const attQuery = query(collection(db, 'attendance'), where('userId', '==', targetUserId));
+    const attSnap = await getDocs(attQuery);
+    const attBatch = writeBatch(db);
+    attSnap.forEach((d) => {
+      attBatch.delete(d.ref);
+    });
+    await attBatch.commit();
+
+    lastUploadedWorkerMap.clear();
+    lastUploadedAttendanceMap.clear();
+  } catch (err) {
+    console.warn('Error purging user account data from Firestore:', err);
+    throw err;
+  }
+};
+

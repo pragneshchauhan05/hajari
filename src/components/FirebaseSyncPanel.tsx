@@ -1,6 +1,8 @@
 import React from 'react';
 import { User } from 'firebase/auth';
 import { Worker, MonthlyWorkerAttendance } from '../types';
+import { useLanguage } from '../context/LanguageContext';
+import { isQuotaExhausted } from '../utils/firebaseSync';
 
 interface FirebaseSyncPanelProps {
   workers: Worker[];
@@ -31,6 +33,8 @@ export default function FirebaseSyncPanel({
   onLogout,
   onRestore,
 }: FirebaseSyncPanelProps) {
+  const { language, t } = useLanguage();
+
   return (
     <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900 mt-6" id="firebase-sync-panel">
       <div className="flex flex-col md:flex-row md:items-center md:justify-between border-b border-gray-100 pb-4 dark:border-slate-800 gap-4">
@@ -53,10 +57,10 @@ export default function FirebaseSyncPanel({
           </div>
           <div>
             <h3 className="text-lg font-bold text-gray-900 font-sans dark:text-slate-100">
-              સુરક્ષિત ગૂગલ ક્લાઉડ ઓટો-સેવ (Secured Google Cloud Auto-Save)
+              {t('cloudSyncTitle')}
             </h3>
             <p className="text-xs text-gray-400 dark:text-slate-400 mt-1">
-              હવે તમારો ચોપડો કોઈ કિંમત આપ્યા વિના ગૂગલના સુરક્ષિત અને ફ્રી ક્લાઉડ સર્વર પર આપોઆપ ઓટો-સેવ થઈ જશે! મોબાઈલ ખોવાઈ જાય તો પણ બધો હિસાબ અકબંધ રહેશે.
+              {t('cloudSyncDesc')}
             </p>
           </div>
         </div>
@@ -72,7 +76,7 @@ export default function FirebaseSyncPanel({
               <svg className="h-4 w-4 shrink-0" fill="currentColor" viewBox="0 0 24 24">
                 <path d="M12.24 10.285V13.4h6.887c-.275 1.565-1.88 4.604-6.887 4.604-4.33 0-7.859-3.578-7.859-8s3.53-8 7.859-8c2.46 0 4.105 1.025 5.047 1.926l2.427-2.334C17.955 2.192 15.34 1 12.24 1 6.033 1 1 6.033 1 12.24s5.033 11.24 11.24 11.24c6.478 0 10.793-4.537 10.793-10.986 0-.745-.079-1.32-.174-1.883H12.24z"/>
               </svg>
-              <span>{isLoggingIn ? 'કનેક્ટ થઈ રહ્યું છે...' : 'ગૂગલ એકાઉન્ટ જોડો (લૉગિન)'}</span>
+              <span>{isLoggingIn ? (language === 'en' ? 'Connecting...' : 'કનેક્ટ થઈ રહ્યું છે...') : t('loginWithGoogleBtn')}</span>
             </button>
           ) : (
             <div className="flex items-center gap-2.5">
@@ -87,17 +91,14 @@ export default function FirebaseSyncPanel({
                 )}
                 <div className="text-left leading-none">
                   <p className="text-xs font-bold text-gray-800 dark:text-slate-200">
-                    {user.displayName}
-                  </p>
-                  <p className="text-[10px] text-gray-400 dark:text-slate-500">
-                    {user.email}
+                    {user.displayName || (language === 'en' ? 'Google Account' : 'ગૂગલ એકાઉન્ટ')}
                   </p>
                 </div>
               </div>
               <button
                 onClick={onLogout}
-                title="Google આઈડી લોગઆઉટ કરો"
-                className="flex h-8 w-8 items-center justify-center rounded-xl border border-gray-100 hover:bg-rose-50 hover:border-rose-200 text-gray-400 hover:text-rose-500 transition-all dark:border-slate-800 dark:hover:bg-rose-950/20"
+                title={t('logoutBtn')}
+                className="flex h-8 w-8 items-center justify-center rounded-xl border border-gray-100 hover:bg-rose-50 hover:border-rose-200 text-gray-400 hover:text-rose-500 transition-all dark:border-slate-800 dark:hover:bg-rose-950/20 cursor-pointer"
               >
                 <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 013 3H6a3 3 0 013-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
@@ -127,7 +128,7 @@ export default function FirebaseSyncPanel({
           {/* Auto backup status panel */}
           <div className="space-y-1">
             <span className="text-[10px] font-bold text-gray-400 dark:text-slate-500 uppercase tracking-wider block">
-              ડેટા સિંકની સ્થિતિ (Sync Status)
+              {language === 'en' ? 'Sync Status' : 'ડેટા સિંકની સ્થિતિ (Sync Status)'}
             </span>
             <div className="flex items-center gap-2">
               {isBackingUp ? (
@@ -137,7 +138,14 @@ export default function FirebaseSyncPanel({
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                   </svg>
                   <span className="text-xs font-bold text-teal-600 dark:text-teal-400 animate-pulse">
-                    નવા સુધારા આપોઆપ સેવ થઈ રહ્યા છે...
+                    {t('syncingStatus')}
+                  </span>
+                </>
+              ) : isQuotaExhausted() ? (
+                <>
+                  <span className="flex h-2.5 w-2.5 rounded-full bg-emerald-500"></span>
+                  <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400">
+                    {language === 'en' ? 'Saved Safely ✓' : 'ડેટા સુરક્ષિત સેવ છે ✓'}
                   </span>
                 </>
               ) : hasLocalChanges ? (
@@ -147,14 +155,14 @@ export default function FirebaseSyncPanel({
                     <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-500"></span>
                   </span>
                   <span className="text-xs font-bold text-amber-600 dark:text-amber-400">
-                    નવા ફેરફારો મળ્યા, આપોઆપ સેવ થશે...
+                    {t('pendingStatus')}
                   </span>
                 </>
               ) : (
                 <>
                   <span className="flex h-2.5 w-2.5 rounded-full bg-emerald-500"></span>
                   <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
-                    બધો ડેટા ક્લાઉડ માં સુરક્ષિત છે ✓
+                    {t('syncedStatus')}
                   </span>
                 </>
               )}
@@ -165,7 +173,7 @@ export default function FirebaseSyncPanel({
             <button
               onClick={onRestore}
               disabled={isRestoring || isBackingUp}
-              className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold text-teal-700 bg-teal-50 border border-teal-200 hover:bg-teal-100 disabled:opacity-40 select-none cursor-pointer transition-all dark:bg-slate-800 dark:text-teal-400 dark:border-slate-750 dark:hover:bg-slate-700"
+              className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold text-teal-700 bg-teal-50 border border-teal-200 hover:bg-teal-100 disabled:opacity-40 select-none cursor-pointer transition-all dark:bg-slate-800 dark:text-teal-400 dark:border-slate-700 dark:hover:bg-slate-700"
             >
               {isRestoring ? (
                 <>
@@ -173,14 +181,14 @@ export default function FirebaseSyncPanel({
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                   </svg>
-                  <span>રીસ્ટોર થઈ રહ્યું છે...</span>
+                  <span>{language === 'en' ? 'Restoring...' : 'રીસ્ટોર થઈ રહ્યું છે...'}</span>
                 </>
               ) : (
                 <>
                   <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                   </svg>
-                  <span>ક્લાઉડ માંથી હિસાબ રીસ્ટોર કરો</span>
+                  <span>{t('restoreCloudBtn')}</span>
                 </>
               )}
             </button>
@@ -189,7 +197,11 @@ export default function FirebaseSyncPanel({
       ) : (
         <div className="mt-4 p-4 rounded-xl border border-dashed border-gray-200 bg-gray-50/50 dark:border-slate-800 dark:bg-slate-950/10 text-center">
           <p className="text-xs text-gray-500 dark:text-slate-400">
-            તમારો ડેટા ક્લાઉડ પર આપોઆપ સુરક્ષિત રીતે સેવ કરવા માટે ઉપર <strong>"ગૂગલ એકાઉન્ટ જોડો (લૉગિન)"</strong> બટન દબાવો.
+            {language === 'en' ? (
+              <>Click <strong>"{t('loginWithGoogleBtn')}"</strong> above to auto-save and back up your records to Google Cloud.</>
+            ) : (
+              <>તમારો ડેટા ક્લાઉડ પર આપોઆપ સુરક્ષિત રીતે સેવ કરવા માટે ઉપર <strong>"ગૂગલ એકાઉન્ટ વડે લોગિન કરો"</strong> બટન દબાવો.</>
+            )}
           </p>
         </div>
       )}

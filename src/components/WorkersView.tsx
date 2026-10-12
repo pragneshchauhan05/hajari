@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
+import { User } from 'firebase/auth';
 import { Worker } from '../types';
-import { isWorkerActiveInMonth, GUJARATI_MONTHS } from '../utils/attendanceUtils';
+import { isWorkerActiveInMonth, getWorkerWageForMonth } from '../utils/attendanceUtils';
+import { useLanguage } from '../context/LanguageContext';
 
 interface WorkersViewProps {
   workers: Worker[];
@@ -12,6 +14,9 @@ interface WorkersViewProps {
   onReactivateWorker: (workerId: string, month: number, year: number) => void;
   onRestoreDeletedWorker?: (workerId: string) => void;
   onViewWorkerAttendance: (id: string) => void;
+  user?: User | null;
+  onRestore?: () => void;
+  onOpenQuickEntry?: () => void;
 }
 
 export default function WorkersView({
@@ -24,12 +29,16 @@ export default function WorkersView({
   onReactivateWorker,
   onRestoreDeletedWorker,
   onViewWorkerAttendance,
+  user: _user,
+  onRestore,
+  onOpenQuickEntry,
 }: WorkersViewProps) {
+  const { language, t, months } = useLanguage();
   const [searchQuery, setSearchQuery] = useState('');
   const [showInactiveList, setShowInactiveList] = useState(false);
   const [showDeletedList, setShowDeletedList] = useState(false);
 
-  const monthLabel = GUJARATI_MONTHS.find((m) => m.value === selectedMonth)?.label || '';
+  const monthLabel = months.find((m) => m.value === selectedMonth)?.label || '';
 
   // Separate active workers vs inactive workers for the currently selected month (excluding deleted workers)
   const activeWorkers = workers.filter((w) => !w.isDeleted && isWorkerActiveInMonth(w, selectedMonth, selectedYear));
@@ -79,35 +88,79 @@ export default function WorkersView({
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="કારીગર, સાઇટ અથવા મોબાઇલ નંબર શોધો..."
+            placeholder={t('searchWorkersPlaceholder')}
             className="w-full rounded-xl border border-gray-200 bg-gray-50/50 pl-10 pr-4 py-2.5 text-sm outline-none transition-all focus:border-teal-500 focus:bg-white focus:ring-2 focus:ring-teal-100 dark:border-slate-700 dark:bg-slate-800/60 dark:text-slate-100 dark:focus:border-teal-500 dark:focus:bg-slate-900"
           />
         </div>
 
-        <button
-          id="btn-add-new-worker"
-          onClick={onOpenAddModal}
-          className="flex items-center justify-center gap-2 rounded-xl bg-teal-500 px-5 py-2.5 text-sm font-bold text-white shadow-md shadow-teal-100 transition-all hover:bg-teal-600 select-none whitespace-nowrap dark:shadow-none cursor-pointer"
-        >
-          <i className="fa-solid fa-user-plus"></i>
-          નવો કારીગર ઉમેરો
-        </button>
+        <div className="flex flex-wrap items-center gap-2.5">
+          {onOpenQuickEntry && (
+            <button
+              type="button"
+              id="btn-quick-past-entry-workers"
+              onClick={onOpenQuickEntry}
+              className="flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 px-4 py-2.5 text-xs sm:text-sm font-bold text-white shadow-md shadow-emerald-100 transition-all select-none whitespace-nowrap dark:shadow-none cursor-pointer active:scale-95"
+              title={language === 'en' ? 'Quick Past Month Data Entry' : 'જૂના મહિનાનો હિસાબ એન્ટર કરો'}
+            >
+              <i className="fa-solid fa-bolt-lightning text-amber-300"></i>
+              <span>{language === 'en' ? 'Past Data Entry' : 'જૂના ડેટા એન્ટર કરો'}</span>
+            </button>
+          )}
+
+          {onRestore && (
+            <button
+              type="button"
+              onClick={onRestore}
+              className="flex items-center justify-center gap-2 rounded-xl border border-teal-200 bg-teal-50 px-3.5 py-2.5 text-xs font-bold text-teal-800 hover:bg-teal-100 transition-all cursor-pointer dark:bg-teal-950/40 dark:border-teal-900/50 dark:text-teal-300"
+              title={language === 'en' ? 'Restore from Cloud' : 'ક્લાઉડ માંથી ડેટા રીસ્ટોર કરો'}
+            >
+              <i className="fa-solid fa-cloud-arrow-down"></i>
+              <span>{language === 'en' ? 'Restore from Cloud' : 'ક્લાઉડ માંથી ડેટા રીસ્ટોર કરો'}</span>
+            </button>
+          )}
+
+          <button
+            id="btn-add-new-worker"
+            onClick={onOpenAddModal}
+            className="flex items-center justify-center gap-2 rounded-xl bg-teal-500 px-5 py-2.5 text-sm font-bold text-white shadow-md shadow-teal-100 transition-all hover:bg-teal-600 select-none whitespace-nowrap dark:shadow-none cursor-pointer"
+          >
+            <i className="fa-solid fa-user-plus"></i>
+            {t('addNewWorker')}
+          </button>
+        </div>
       </div>
 
       {/* Workers Grid for Active Workers in Selected Month */}
       {filteredActiveWorkers.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-gray-200 bg-white py-12 text-center shadow-sm dark:border-slate-800 dark:bg-slate-900">
-          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-teal-50 text-teal-500 mb-4 animate-pulse dark:bg-slate-800 dark:text-teal-400">
-            <i className="fa-solid fa-users-slash text-2xl"></i>
+        <div className="space-y-4">
+          <div className="rounded-3xl border border-gray-100 bg-white p-6 sm:p-8 text-center shadow-xs dark:border-slate-800 dark:bg-slate-900">
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-teal-50 text-teal-600 mb-3.5 text-2xl dark:bg-slate-800 dark:text-teal-400">
+              <i className="fa-solid fa-users"></i>
+            </div>
+            
+            <h4 className="text-base sm:text-lg font-black text-gray-900 font-sans dark:text-slate-100">
+              {searchQuery
+                ? `${monthLabel} ${selectedYear}: ${t('noWorkersFound')}`
+                : t('noWorkersTitle')}
+            </h4>
+
+            <p className="text-xs sm:text-sm text-gray-500 mt-2 max-w-lg mx-auto px-4 dark:text-slate-400 leading-relaxed">
+              {searchQuery
+                ? (language === 'en' ? 'Please adjust search query or check spelling.' : 'કૃપા કરીને શોધ ક્વેરી બદલો અથવા સાચું નામ ટાઈપ કરો.')
+                : t('noWorkersDesc')}
+            </p>
+
+            <div className="flex flex-wrap items-center justify-center gap-3 pt-4">
+              <button
+                type="button"
+                onClick={onOpenAddModal}
+                className="flex items-center gap-2 rounded-xl bg-teal-600 hover:bg-teal-700 px-5 py-2.5 text-xs sm:text-sm font-black text-white shadow-md shadow-teal-200 transition-all cursor-pointer dark:shadow-none"
+              >
+                <i className="fa-solid fa-user-plus"></i>
+                <span>{t('addNewWorker')}</span>
+              </button>
+            </div>
           </div>
-          <h4 className="text-lg font-bold text-gray-900 font-sans dark:text-slate-100">
-            {monthLabel} {selectedYear} માં કોઈ ચાલુ કારીગરો મળ્યા નથી!
-          </h4>
-          <p className="text-sm text-gray-500 mt-1 max-w-sm mx-auto px-4 dark:text-slate-400">
-            {searchQuery 
-              ? 'કૃપા કરીને શોધ ક્વેરી બદલો અથવા સાચું નામ ટાઈપ કરો.' 
-              : 'કારીગરો ઉમેરવા માટે ઉપર આપેલા "નવો કારીગર ઉમેરો" બટન પર ક્લિક કરો.'}
-          </p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
@@ -128,13 +181,13 @@ export default function WorkersView({
                   <div className="flex flex-col gap-1.5 mt-2">
                     <p className="text-xs text-gray-500 flex items-center gap-1">
                       <span className="inline-block px-2 py-0.5 rounded-md bg-gray-100 text-gray-700 font-bold dark:bg-slate-800 dark:text-slate-300">
-                        🏗️ સાઇટ: {worker.village}
+                        🏗️ {language === 'en' ? 'Site' : 'સાઇટ'}: {worker.village}
                       </span>
                     </p>
                     {worker.mobile && (
                       <p className="text-xs text-gray-500 flex items-center gap-1">
                         <span className="inline-block px-2 py-0.5 rounded-md bg-teal-50 text-teal-800 font-bold dark:bg-teal-950/40 dark:text-teal-400">
-                          📞 મો: {worker.mobile}
+                          📞 {language === 'en' ? 'Mo' : 'મો'}: {worker.mobile}
                         </span>
                       </p>
                     )}
@@ -143,10 +196,27 @@ export default function WorkersView({
                 
                 {/* Daily Wage Display */}
                 <div className="text-right">
-                  <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest dark:text-slate-500">રોજનો પગાર</p>
-                  <p className="text-lg font-black text-teal-600 font-sans dark:text-teal-400">
-                    ₹{worker.dailyWage}
+                  <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest dark:text-slate-500">
+                    {t('dailyWage')}
                   </p>
+                  {(() => {
+                    const currentWage = getWorkerWageForMonth(worker, selectedYear, selectedMonth);
+                    const prevMonthDate = new Date(selectedYear, selectedMonth - 2, 1);
+                    const prevWage = getWorkerWageForMonth(worker, prevMonthDate.getFullYear(), prevMonthDate.getMonth() + 1);
+                    const hasWageDiff = prevWage > 0 && currentWage !== prevWage;
+                    return (
+                      <>
+                        <p className="text-lg font-black text-teal-600 font-sans dark:text-teal-400">
+                          ₹{currentWage}
+                        </p>
+                        {hasWageDiff && (
+                          <span className="inline-block mt-0.5 text-[10px] font-bold text-emerald-700 bg-emerald-50 dark:bg-emerald-950/40 dark:text-emerald-400 px-1.5 py-0.5 rounded-md">
+                            {currentWage > prevWage ? `+₹${currentWage - prevWage} વધારો` : `₹${currentWage}`} (અગાઉ: ₹{prevWage})
+                          </span>
+                        )}
+                      </>
+                    );
+                  })()}
                 </div>
               </div>
 
@@ -159,7 +229,7 @@ export default function WorkersView({
                   className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-teal-50 hover:bg-teal-100 px-3 py-2 text-xs font-bold text-teal-700 transition-colors dark:bg-teal-950/40 dark:text-teal-400 dark:hover:bg-teal-900/40 cursor-pointer"
                 >
                   <i className="fa-solid fa-calendar-days text-sm"></i>
-                  હાજરીપત્રક જુઓ
+                  {t('viewAttendance')}
                 </button>
 
                 {/* Edit Button */}
@@ -167,7 +237,7 @@ export default function WorkersView({
                   id={`btn-edit-worker-${worker.id}`}
                   onClick={() => onOpenEditModal(worker)}
                   className="flex h-8 w-8 items-center justify-center rounded-lg border border-gray-200 text-gray-500 hover:border-amber-200 hover:bg-amber-50 hover:text-amber-600 transition-colors dark:border-slate-700 dark:text-slate-400 dark:hover:bg-amber-950/30 dark:hover:text-amber-400 dark:hover:border-amber-900/40 cursor-pointer"
-                  title="વિગતો બદલાવો"
+                  title={t('editWorker')}
                 >
                   <i className="fa-solid fa-pen text-xs"></i>
                 </button>
@@ -177,7 +247,7 @@ export default function WorkersView({
                   id={`btn-delete-worker-${worker.id}`}
                   onClick={() => onRequestDeleteWorker(worker)}
                   className="flex h-8 w-8 items-center justify-center rounded-lg border border-gray-200 text-gray-400 hover:border-rose-200 hover:bg-rose-50 hover:text-rose-600 transition-colors dark:border-slate-700 dark:text-slate-400 dark:hover:bg-rose-950/30 dark:hover:text-rose-400 dark:hover:border-rose-900/40 cursor-pointer"
-                  title="કારીગર રદ કરો (ઓન્લી આ મંથ કે કાયમી)"
+                  title={t('deleteWorker')}
                 >
                   <i className="fa-solid fa-trash-can text-xs"></i>
                 </button>
@@ -201,15 +271,17 @@ export default function WorkersView({
               </span>
               <div>
                 <h4 className="text-sm font-extrabold text-amber-950 dark:text-amber-300 font-sans">
-                  {monthLabel} {selectedYear} માં રદ / નિષ્ક્રિય કરેલ કારીગરો
+                  {monthLabel} {selectedYear} - {t('inactiveWorkersHeader')}
                 </h4>
                 <p className="text-[11px] text-amber-700 dark:text-amber-400/80">
-                  આ કારીગરો આ મહિનાના હાજરીપત્રકમાંથી દૂર કરેલ છે, પરંતુ જૂનો તમામ હિસાબ સુરક્ષિત છે!
+                  {language === 'en'
+                    ? 'Deactivated for this month only; historical records remain preserved!'
+                    : 'આ કારીગરો આ મહિનાના હાજરીપત્રકમાંથી દૂર કરેલ છે, પરંતુ જૂનો તમામ હિસાબ સુરક્ષિત છે!'}
                 </p>
               </div>
             </div>
             <div className="flex items-center gap-1.5 text-xs font-bold text-amber-800 dark:text-amber-300">
-              <span>{showInactiveList ? 'બંધ કરો' : 'બતાવો'}</span>
+              <span>{showInactiveList ? (language === 'en' ? 'Hide' : 'બંધ કરો') : (language === 'en' ? 'Show' : 'બતાવો')}</span>
               <i className={`fa-solid ${showInactiveList ? 'fa-chevron-up' : 'fa-chevron-down'}`}></i>
             </div>
           </button>
@@ -226,7 +298,7 @@ export default function WorkersView({
                       👤 {worker.name}
                     </h5>
                     <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">
-                      🏗️ {worker.village} · ₹{worker.dailyWage}/દિવસ
+                      🏗️ {worker.village} · ₹{getWorkerWageForMonth(worker, selectedYear, selectedMonth)}/{language === 'en' ? 'day' : 'દિવસ'}
                     </p>
                   </div>
 
@@ -235,17 +307,17 @@ export default function WorkersView({
                       type="button"
                       onClick={() => onReactivateWorker(worker.id, selectedMonth, selectedYear)}
                       className="flex items-center gap-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 px-3 py-1.5 text-xs font-extrabold text-white transition-all active:scale-95 cursor-pointer dark:bg-emerald-500"
-                      title="આ મહિનાના હાજરીપત્રકમાં પાછા ઉમેરો"
+                      title={t('reactivateForMonth')}
                     >
                       <i className="fa-solid fa-plus-circle"></i>
-                      <span>આ મહિનામાં પાછા ઉમેરો</span>
+                      <span>{t('reactivateForMonth')}</span>
                     </button>
 
                     <button
                       type="button"
                       onClick={() => onRequestDeleteWorker(worker)}
-                      className="flex h-7 w-7 items-center justify-center rounded-lg border border-gray-200 text-gray-400 hover:text-rose-600 transition-colors dark:border-slate-800"
-                      title="કાયમી ડિલીટ કરો"
+                      className="flex h-7 w-7 items-center justify-center rounded-lg border border-gray-200 text-gray-400 hover:text-rose-600 transition-colors dark:border-slate-800 cursor-pointer"
+                      title={t('deleteWorker')}
                     >
                       <i className="fa-solid fa-trash-can text-xs"></i>
                     </button>
@@ -271,15 +343,17 @@ export default function WorkersView({
               </span>
               <div>
                 <h4 className="text-sm font-extrabold text-gray-800 dark:text-slate-200 font-sans">
-                  કાયમી રદ કરેલા કારીગરો (આર્કાઇવ્ડ)
+                  {t('archivedWorkersHeader')}
                 </h4>
                 <p className="text-[11px] text-gray-500 dark:text-slate-400">
-                  આ કારીગરો ચાલુ લિસ્ટમાંથી દૂર છે, પરંતુ તેમનો અગાઉનો તમામ જૂનો હાજરી અને ઉપાડનો હિસાબ સુરક્ષિત છે.
+                  {language === 'en'
+                    ? 'Removed from active roster, but all past attendance & financial records are fully preserved.'
+                    : 'આ કારીગરો ચાલુ લિસ્ટમાંથી દૂર છે, પરંતુ તેમનો અગાઉનો તમામ જૂનો હાજરી અને ઉપાડનો હિસાબ સુરક્ષિત છે.'}
                 </p>
               </div>
             </div>
             <div className="flex items-center gap-1.5 text-xs font-bold text-gray-600 dark:text-slate-400">
-              <span>{showDeletedList ? 'બંધ કરો' : 'બતાવો'}</span>
+              <span>{showDeletedList ? (language === 'en' ? 'Hide' : 'બંધ કરો') : (language === 'en' ? 'Show' : 'બતાવો')}</span>
               <i className={`fa-solid ${showDeletedList ? 'fa-chevron-up' : 'fa-chevron-down'}`}></i>
             </div>
           </button>
@@ -296,7 +370,7 @@ export default function WorkersView({
                       👤 {worker.name}
                     </h5>
                     <p className="text-xs text-gray-400 dark:text-slate-500 mt-0.5">
-                      🏗️ {worker.village} · ₹{worker.dailyWage}/દિવસ
+                      🏗️ {worker.village} · ₹{getWorkerWageForMonth(worker, selectedYear, selectedMonth)}/{language === 'en' ? 'day' : 'દિવસ'}
                     </p>
                   </div>
 
@@ -304,22 +378,22 @@ export default function WorkersView({
                     <button
                       type="button"
                       onClick={() => onViewWorkerAttendance(worker.id)}
-                      className="flex items-center gap-1 rounded-lg bg-teal-50 hover:bg-teal-100 text-teal-700 px-2.5 py-1.5 text-xs font-bold transition-all dark:bg-teal-950/40 dark:text-teal-400"
-                      title="જૂની હાજરી જુઓ"
+                      className="flex items-center gap-1 rounded-lg bg-teal-50 hover:bg-teal-100 text-teal-700 px-2.5 py-1.5 text-xs font-bold transition-all dark:bg-teal-950/40 dark:text-teal-400 cursor-pointer"
+                      title={t('viewAttendance')}
                     >
                       <i className="fa-solid fa-calendar-days text-xs"></i>
-                      <span>હિસાબ જુઓ</span>
+                      <span>{t('viewAttendance')}</span>
                     </button>
 
                     {onRestoreDeletedWorker && (
                       <button
                         type="button"
                         onClick={() => onRestoreDeletedWorker(worker.id)}
-                        className="flex items-center gap-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white px-2.5 py-1.5 text-xs font-bold transition-all active:scale-95"
-                        title="ફરીથી ચાલુ કારીગરોમાં પાછા ઉમેરો"
+                        className="flex items-center gap-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white px-2.5 py-1.5 text-xs font-bold transition-all active:scale-95 cursor-pointer"
+                        title={t('restorePermanentlyDeleted')}
                       >
                         <i className="fa-solid fa-rotate-left text-xs"></i>
-                        <span>પુનઃ સક્રિય કરો</span>
+                        <span>{t('restorePermanentlyDeleted')}</span>
                       </button>
                     )}
                   </div>
@@ -332,4 +406,3 @@ export default function WorkersView({
     </div>
   );
 }
-

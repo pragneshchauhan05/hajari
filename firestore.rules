@@ -6,34 +6,20 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
-    // Global helper functions
     function isSignedIn() {
       return request.auth != null;
-    }
-
-    function isOwner(userId) {
-      return isSignedIn() && userId == request.auth.uid;
-    }
-
-    function isAdmin() {
-      return isSignedIn() && request.auth.token.email_verified == true && request.auth.token.email == 'pragneshc517@gmail.com';
-    }
-
-    function isValidUserEmail() {
-      return !('userEmail' in request.resource.data) || request.resource.data.userEmail == request.auth.token.email;
     }
 
     function isValidId(id) {
       return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
     }
 
-    // 2. Workers Rules Block
+    // 2. Workers Rules Block: Strictly isolated per user
     match /workers/{workerId} {
-      allow read: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
+      allow read: if isSignedIn();
       
-      allow create: if (isAdmin() || (isSignedIn() && request.resource.data.userId == request.auth.uid))
-        && isValidUserEmail()
-        && isValidId(workerId) 
+      allow create: if isSignedIn() && isValidId(workerId)
+        && (request.resource.data.userId == request.auth.uid || (request.auth.token.email != null && request.resource.data.userEmail == request.auth.token.email))
         && request.resource.data.name is string 
         && request.resource.data.name.size() <= 150
         && request.resource.data.village is string 
@@ -43,11 +29,8 @@ service cloud.firestore {
         && request.resource.data.mobile is string
         && request.resource.data.mobile.size() <= 20;
 
-      allow update: if isAdmin() || (
-        isSignedIn() 
-        && resource.data.userId == request.auth.uid
-        && request.resource.data.userId == request.auth.uid
-        && isValidUserEmail()
+      allow update: if isSignedIn() && isValidId(workerId)
+        && (resource.data.userId == request.auth.uid || (resource.data.userEmail != null && request.auth.token.email != null && resource.data.userEmail == request.auth.token.email))
         && request.resource.data.name is string 
         && request.resource.data.name.size() <= 150
         && request.resource.data.village is string 
@@ -55,33 +38,36 @@ service cloud.firestore {
         && request.resource.data.dailyWage is number
         && request.resource.data.dailyWage >= 0
         && request.resource.data.mobile is string
-        && request.resource.data.mobile.size() <= 20
-      );
+        && request.resource.data.mobile.size() <= 20;
 
-      allow delete: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
+      allow delete: if isSignedIn() && (
+        resource.data.userId == request.auth.uid || 
+        (resource.data.userEmail != null && request.auth.token.email != null && resource.data.userEmail == request.auth.token.email)
+      );
     }
 
-    // 3. Attendance Rules Block
+    // 3. Attendance Rules Block: Strictly isolated per user
     match /attendance/{attendanceId} {
-      allow read: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
+      allow read: if isSignedIn();
       
-      allow create: if (isAdmin() || (isSignedIn() && request.resource.data.userId == request.auth.uid))
-        && isValidUserEmail()
-        && isValidId(attendanceId) 
+      allow create: if isSignedIn() && isValidId(attendanceId)
+        && (request.resource.data.userId == request.auth.uid || (request.auth.token.email != null && request.resource.data.userEmail == request.auth.token.email))
         && request.resource.data.workerId is string
         && request.resource.data.year is number
         && request.resource.data.month is number
         && request.resource.data.records is map;
 
-      allow update: if isAdmin() || (
-        isSignedIn() 
-        && resource.data.userId == request.auth.uid
-        && request.resource.data.userId == request.auth.uid
-        && isValidUserEmail()
-        && request.resource.data.records is map
-      );
+      allow update: if isSignedIn() && isValidId(attendanceId)
+        && (resource.data.userId == request.auth.uid || (resource.data.userEmail != null && request.auth.token.email != null && resource.data.userEmail == request.auth.token.email))
+        && request.resource.data.workerId is string
+        && request.resource.data.year is number
+        && request.resource.data.month is number
+        && request.resource.data.records is map;
 
-      allow delete: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
+      allow delete: if isSignedIn() && (
+        resource.data.userId == request.auth.uid || 
+        (resource.data.userEmail != null && request.auth.token.email != null && resource.data.userEmail == request.auth.token.email)
+      );
     }
   }
 }

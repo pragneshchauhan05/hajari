@@ -1,6 +1,8 @@
 import React from 'react';
 import { Worker, MonthlyWorkerAttendance } from '../types';
-import { calculateGlobalSummary, calculateWorkerTotals, getDaysInMonth, GUJARATI_MONTHS, isWorkerActiveInMonth } from '../utils/attendanceUtils';
+import { calculateGlobalSummary, calculateWorkerTotals, getDaysInMonth, isWorkerActiveInMonth, getWorkerWageForMonth } from '../utils/attendanceUtils';
+import { useLanguage } from '../context/LanguageContext';
+import { formatIndianCurrency } from '../utils/translations';
 
 interface ReportsViewProps {
   workers: Worker[];
@@ -17,10 +19,11 @@ export default function ReportsView({
   selectedYear,
   onViewWorkerAttendance,
 }: ReportsViewProps) {
+  const { language, t, months } = useLanguage();
   const [printTarget, setPrintTarget] = React.useState<string | 'all'>('all');
 
   const stats = calculateGlobalSummary(workers, attendanceDB, selectedYear, selectedMonth);
-  const activeMonthLabel = GUJARATI_MONTHS.find((m) => m.value === selectedMonth)?.label || '';
+  const activeMonthLabel = months.find((m) => m.value === selectedMonth)?.label || '';
   const daysCount = getDaysInMonth(selectedYear, selectedMonth);
 
   // Include workers who are active in the selected month OR have recorded attendance/upad for that month
@@ -36,7 +39,7 @@ export default function ReportsView({
 
   // Format currency
   const formatCurrency = (val: number) => {
-    return '₹' + Math.round(val).toLocaleString('gu-IN');
+    return formatIndianCurrency(val);
   };
 
   const handlePrintSingleWorker = (workerId: string) => {
@@ -60,10 +63,11 @@ export default function ReportsView({
         <div>
           <h3 className="text-lg font-bold text-gray-900 font-sans flex items-center gap-2 dark:text-slate-100">
             <i className="fa-solid fa-chart-line text-emerald-500"></i>
-            કારીગર માસિક હિસાબ અહેવાલ (Summary Sheet)
+            {t('reportsSheetTitle')}
           </h3>
           <p className="text-xs text-gray-500 mt-1 dark:text-slate-400">
-            પસંદ કરેલ સમયગાળો: <span className="font-semibold text-teal-600 dark:text-teal-400">{activeMonthLabel} - {selectedYear}</span>
+            {t('selectedPeriodLabel')}{' '}
+            <span className="font-semibold text-teal-600 dark:text-teal-400">{activeMonthLabel} - {selectedYear}</span>
           </p>
         </div>
 
@@ -74,7 +78,7 @@ export default function ReportsView({
             className="flex items-center justify-center gap-1.5 rounded-xl bg-teal-500 text-white hover:bg-teal-600 px-5 py-2.5 text-xs font-bold shadow-md shadow-teal-100 transition-colors select-none dark:shadow-none cursor-pointer"
           >
             <i className="fa-solid fa-file-pdf"></i>
-            બધાનો આખો રિપોર્ટ PDF (Download All PDF)
+            {t('downloadAllPdfBtn')}
           </button>
         </div>
       </div>
@@ -83,44 +87,68 @@ export default function ReportsView({
       <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 lg:grid-cols-6 print:hidden">
         {/* Total Workers */}
         <div className="rounded-xl border border-gray-100 bg-white p-3 xs:p-4 shadow-sm text-center dark:border-slate-800 dark:bg-slate-900 transition-colors">
-          <p className="text-[9px] xs:text-[10px] sm:text-xs font-bold text-gray-400 uppercase tracking-widest dark:text-slate-500 truncate" title="કુલ કારીગરો">કુલ કારીગરો</p>
+          <p className="text-[9px] xs:text-[10px] sm:text-xs font-bold text-gray-400 uppercase tracking-widest dark:text-slate-500 truncate" title={t('totalWorkers')}>
+            {t('totalWorkers')}
+          </p>
           <h4 className="text-xl sm:text-2xl font-black text-slate-800 font-sans mt-1.5 dark:text-slate-100">{stats.totalWorkers}</h4>
-          <span className="text-[9px] sm:text-[10px] text-gray-400 mt-1 block dark:text-slate-500 truncate" title="કંપનીમાં રજિસ્ટર્ડ">કંપનીમાં રજિસ્ટર્ડ</span>
+          <span className="text-[9px] sm:text-[10px] text-gray-400 mt-1 block dark:text-slate-500 truncate">
+            {language === 'en' ? 'Registered' : 'કંપનીમાં રજિસ્ટર્ડ'}
+          </span>
         </div>
 
         {/* Total Present */}
         <div className="rounded-xl border border-emerald-100 bg-emerald-50/20 p-3 xs:p-4 shadow-sm text-center dark:border-emerald-950/40 dark:bg-emerald-950/20 transition-colors">
-          <p className="text-[9px] xs:text-[10px] sm:text-xs font-bold text-emerald-600 uppercase tracking-widest dark:text-emerald-400 truncate" title="કુલ હાજર">કુલ હાજર</p>
+          <p className="text-[9px] xs:text-[10px] sm:text-xs font-bold text-emerald-600 uppercase tracking-widest dark:text-emerald-400 truncate" title={t('totalPresentDays')}>
+            {t('totalPresentDays')}
+          </p>
           <h4 className="text-xl sm:text-2xl font-black text-emerald-600 font-sans mt-1.5 dark:text-emerald-400">{stats.totalPresent}</h4>
-          <span className="text-[9px] sm:text-[10px] text-emerald-500 mt-1 block dark:text-emerald-500 truncate" title="નક્કી કરેલ દિવસો">નક્કી કરેલ દિવસો</span>
+          <span className="text-[9px] sm:text-[10px] text-emerald-500 mt-1 block dark:text-emerald-500 truncate">
+            {language === 'en' ? 'Total Days' : 'નક્કી કરેલ દિવસો'}
+          </span>
         </div>
 
         {/* Total Absent */}
         <div className="rounded-xl border border-rose-100 bg-rose-50/20 p-3 xs:p-4 shadow-sm text-center dark:border-rose-900/40 dark:bg-rose-900/20 transition-colors">
-          <p className="text-[9px] xs:text-[10px] sm:text-xs font-bold text-rose-600 uppercase tracking-widest dark:text-rose-400 truncate" title="કુલ ગેરહાજર">કુલ ગેરહાજર</p>
+          <p className="text-[9px] xs:text-[10px] sm:text-xs font-bold text-rose-600 uppercase tracking-widest dark:text-rose-400 truncate" title={t('totalAbsentDays')}>
+            {t('totalAbsentDays')}
+          </p>
           <h4 className="text-xl sm:text-2xl font-black text-rose-600 font-sans mt-1.5 dark:text-rose-400">{stats.totalAbsent}</h4>
-          <span className="text-[9px] sm:text-[10px] text-rose-500 mt-1 block dark:text-rose-500 truncate" title="ગેરહાજર દિવસો">ગેરહાજર દિવસો</span>
+          <span className="text-[9px] sm:text-[10px] text-rose-500 mt-1 block dark:text-rose-500 truncate">
+            {language === 'en' ? 'Days' : 'ગેરહાજર દિવસો'}
+          </span>
         </div>
 
         {/* Total Earnings */}
         <div className="rounded-xl border border-cyan-100 bg-cyan-50/20 p-3 xs:p-4 shadow-sm text-center dark:border-cyan-950/40 dark:bg-cyan-950/20 transition-colors">
-          <p className="text-[9px] xs:text-[10px] sm:text-xs font-bold text-cyan-600 uppercase tracking-widest dark:text-cyan-400 truncate" title="કુલ બનેલ કમાણી (જમા)">કુલ બનેલ કમાણી (જમા)</p>
+          <p className="text-[9px] xs:text-[10px] sm:text-xs font-bold text-cyan-600 uppercase tracking-widest dark:text-cyan-400 truncate" title={t('totalEarnings')}>
+            {t('totalEarnings')}
+          </p>
           <h4 className="text-base sm:text-xl font-bold text-cyan-700 font-sans mt-1.5 dark:text-cyan-400">{formatCurrency(stats.totalEarnings)}</h4>
-          <span className="text-[9px] sm:text-[10px] text-cyan-500 mt-1 block dark:text-cyan-400 truncate" title="સિસ્ટમ દ્વારા જનરેટ">સિસ્ટમ દ્વારા જનરેટ</span>
+          <span className="text-[9px] sm:text-[10px] text-cyan-500 mt-1 block dark:text-cyan-400 truncate">
+            {language === 'en' ? 'Gross Pay' : 'સિસ્ટમ દ્વારા જનરેટ'}
+          </span>
         </div>
 
         {/* Total Upad */}
         <div className="rounded-xl border border-amber-100 bg-amber-50/20 p-3 xs:p-4 shadow-sm text-center dark:border-amber-950/40 dark:bg-amber-950/20 transition-colors">
-          <p className="text-[9px] xs:text-[10px] sm:text-xs font-bold text-amber-600 uppercase tracking-widest dark:text-amber-400 truncate" title="કુલ ચૂકવેલ રકમ (ઉપાડ)">કુલ ચૂકવેલ રકમ (ઉપાડ)</p>
+          <p className="text-[9px] xs:text-[10px] sm:text-xs font-bold text-amber-600 uppercase tracking-widest dark:text-amber-400 truncate" title={t('totalAdvance')}>
+            {t('totalAdvance')}
+          </p>
           <h4 className="text-base sm:text-xl font-bold text-amber-700 font-sans mt-1.5 dark:text-amber-400">{formatCurrency(stats.totalUpad)}</h4>
-          <span className="text-[9px] sm:text-[10px] text-amber-500 mt-1 block dark:text-amber-400 truncate" title="મેં ચૂકવેલ કુલ રકમ">મેં ચૂકવેલ કુલ રકમ</span>
+          <span className="text-[9px] sm:text-[10px] text-amber-500 mt-1 block dark:text-amber-400 truncate">
+            {language === 'en' ? 'Advance Paid' : 'મેં ચૂકવેલ કુલ રકમ'}
+          </span>
         </div>
 
         {/* Total Remaining / Balance */}
         <div className="rounded-xl border border-purple-100 bg-purple-50/20 p-3 xs:p-4 shadow-sm text-center dark:border-purple-950/40 dark:bg-purple-950/20 transition-colors">
-          <p className="text-[9px] xs:text-[10px] sm:text-xs font-bold text-purple-600 uppercase tracking-widest dark:text-purple-400 truncate" title="કુલ ચૂકવવાની બાકી રકમ">કુલ ચૂકવવાની બાકી રકમ</p>
+          <p className="text-[9px] xs:text-[10px] sm:text-xs font-bold text-purple-600 uppercase tracking-widest dark:text-purple-400 truncate" title={t('netPayable')}>
+            {t('netPayable')}
+          </p>
           <h4 className="text-base sm:text-xl font-bold text-purple-700 font-sans mt-1.5 dark:text-purple-400">{formatCurrency(stats.totalBalance)}</h4>
-          <span className="text-[9px] sm:text-[10px] text-purple-500 mt-1 block dark:text-purple-400 truncate" title="હવે ચૂકવવાના બાકી રૂપિયા">હવે ચૂકવવાના બાકી રૂપિયા</span>
+          <span className="text-[9px] sm:text-[10px] text-purple-500 mt-1 block dark:text-purple-400 truncate">
+            {language === 'en' ? 'Net Dues' : 'હવે ચૂકવવાના બાકી રૂપિયા'}
+          </span>
         </div>
       </div>
 
@@ -128,12 +156,14 @@ export default function ReportsView({
       <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm space-y-4 print:hidden dark:border-slate-800 dark:bg-slate-900 transition-colors">
         <h3 className="text-base font-bold text-gray-900 font-sans flex items-center gap-2 dark:text-slate-100">
           <i className="fa-solid fa-list-check text-teal-500"></i>
-          બધા કારીગરોનું વિગતવાર માસિક પત્રક
+          {language === 'en' ? 'Detailed Monthly Worker Statement' : 'બધા કારીગરોનું વિગતવાર માસિક પત્રક'}
         </h3>
 
         {reportWorkers.length === 0 ? (
           <div className="py-8 text-center text-gray-400 dark:text-slate-500">
-            આ મહિના માટે કોઈ ચાલુ કારીગરો પંજીકૃત કરેલ નથી. કૃપા કરીને કારીગરો સેક્શનમાં જઈને નવા કારીગર ઉમેરો.
+            {language === 'en'
+              ? 'No active workers found for this month. Please add workers from the Workers section.'
+              : 'આ મહિના માટે કોઈ ચાલુ કારીગરો પંજીકૃત કરેલ નથી. કૃપા કરીને કારીગરો સેક્શનમાં જઈને નવા કારીગર ઉમેરો.'}
           </div>
         ) : (
           <div className="overflow-x-auto rounded-xl border border-gray-100 dark:border-slate-800">
@@ -141,37 +171,37 @@ export default function ReportsView({
             <div className="flex items-center justify-between px-4 py-2 bg-teal-50/20 border-b border-gray-100 dark:bg-slate-800/50 dark:border-slate-800 md:hidden text-[11px] font-bold text-teal-700 dark:text-teal-400">
               <span className="flex items-center gap-1">
                 <i className="fa-solid fa-arrows-left-right text-xs text-teal-500"></i>
-                આંગળીથી ડાબે-જમણે સ્ક્રૉલ કરો (Swipe Table)
+                {language === 'en' ? 'Swipe table horizontally' : 'આંગળીથી ડાબે-જમણે સ્ક્રૉલ કરો (Swipe Table)'}
               </span>
-              <span className="text-[10px] text-gray-400 dark:text-slate-500">કારીગર માસિક હિસાબ</span>
+              <span className="text-[10px] text-gray-400 dark:text-slate-500">{activeMonthLabel}</span>
             </div>
 
             <table className="w-full border-collapse text-left text-sm text-gray-500 dark:text-slate-400">
               <thead className="bg-gray-50 text-xs font-semibold uppercase text-gray-600 border-b border-gray-100 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-800">
                 <tr>
                   <th scope="col" className="px-4 py-3.5 text-left font-bold">
-                    કારીગર
+                    {t('tableWorkerName')}
                   </th>
                   <th scope="col" className="px-4 py-3.5 text-center font-bold">
-                    રોજ (₹)
+                    {t('tableDailyWage')}
                   </th>
                   <th scope="col" className="px-4 py-3.5 text-center font-bold">
-                    હાજર દિવસો
+                    {t('tablePresentDays')}
                   </th>
                   <th scope="col" className="px-4 py-3.5 text-center font-bold">
-                    ગેરહાજર દિવસો
+                    {language === 'en' ? 'Absent Days' : 'ગેરહાજર દિવસો'}
                   </th>
                   <th scope="col" className="px-4 py-3.5 text-right font-bold">
-                    કુલ કમાણી (જમા) (₹)
+                    {t('tableTotalEarnings')}
                   </th>
                   <th scope="col" className="px-4 py-3.5 text-right font-bold">
-                    ચૂકવેલ રકમ / ઉપાડ (₹)
+                    {t('tableTotalUpad')}
                   </th>
                   <th scope="col" className="px-4 py-3.5 text-right font-bold">
-                    બાકી ચૂકવવાના (₹)
+                    {t('tableBalance')}
                   </th>
                   <th scope="col" className="px-4 py-3.5 text-center font-bold">
-                    એક્શન
+                    {language === 'en' ? 'Action' : 'એક્શન'}
                   </th>
                 </tr>
               </thead>
@@ -179,19 +209,22 @@ export default function ReportsView({
                 {reportWorkers.map((worker) => {
                   const key = `${worker.id}_${selectedYear}_${selectedMonth}`;
                   const currentAttendance = attendanceDB[key] || {};
-                  const totals = calculateWorkerTotals(currentAttendance, worker.dailyWage, daysCount);
+                  const wage = getWorkerWageForMonth(worker, selectedYear, selectedMonth);
+                  const totals = calculateWorkerTotals(currentAttendance, wage, daysCount);
 
                   return (
                     <tr key={worker.id} className="hover:bg-teal-50/5 dark:hover:bg-slate-800/50 transition-colors">
                       {/* Name & Village */}
                       <td className="px-4 py-3">
                         <div className="font-semibold text-gray-900 dark:text-slate-100">{worker.name}</div>
-                        <div className="text-xs text-gray-400 dark:text-slate-500">🏗️ સાઇટ: {worker.village}{worker.mobile ? ` | 📞 મો: ${worker.mobile}` : ''}</div>
+                        <div className="text-xs text-gray-400 dark:text-slate-500">
+                          🏗️ {language === 'en' ? 'Site' : 'સાઇટ'}: {worker.village}{worker.mobile ? ` | 📞 ${language === 'en' ? 'Mo' : 'મો'}: ${worker.mobile}` : ''}
+                        </div>
                       </td>
 
                       {/* wage rate */}
                       <td className="px-4 py-3 text-center font-medium text-gray-700 dark:text-slate-300">
-                        ₹{worker.dailyWage}
+                        ₹{wage}
                       </td>
 
                       {/* present count */}
@@ -210,17 +243,17 @@ export default function ReportsView({
 
                       {/* total earnings */}
                       <td className="px-4 py-3 text-right font-bold text-teal-600 dark:text-teal-400">
-                        ₹{totals.totalEarnings.toLocaleString('gu-IN')}
+                        ₹{totals.totalEarnings.toLocaleString('en-IN')}
                       </td>
 
                       {/* total upad */}
                       <td className="px-4 py-3 text-right font-bold text-amber-600 dark:text-amber-400">
-                        ₹{totals.totalUpad.toLocaleString('gu-IN')}
+                        ₹{totals.totalUpad.toLocaleString('en-IN')}
                       </td>
 
                       {/* balance remaining dues */}
                       <td className={`px-4 py-3 text-right font-black ${totals.balance >= 0 ? 'text-teal-700 dark:text-teal-400' : 'text-rose-600 dark:text-rose-400'}`}>
-                        ₹{totals.balance.toLocaleString('gu-IN')}
+                        ₹{totals.balance.toLocaleString('en-IN')}
                       </td>
 
                       {/* details action */}
@@ -229,17 +262,17 @@ export default function ReportsView({
                           <button
                             id={`btn-report-view-${worker.id}`}
                             onClick={() => onViewWorkerAttendance(worker.id)}
-                            className="inline-flex items-center justify-center rounded-lg bg-teal-50 hover:bg-teal-100 px-2.5 py-1.5 text-xs font-bold text-teal-700 transition-colors dark:bg-teal-950/40 dark:text-teal-400 dark:hover:bg-teal-905"
+                            className="inline-flex items-center justify-center rounded-lg bg-teal-50 hover:bg-teal-100 px-2.5 py-1.5 text-xs font-bold text-teal-700 transition-colors dark:bg-teal-950/40 dark:text-teal-400 cursor-pointer"
                           >
-                            વિગતવાર પત્રક
+                            {language === 'en' ? 'Details' : 'વિગતવાર પત્રક'}
                           </button>
                           <button
                             id={`btn-print-single-${worker.id}`}
                             onClick={() => handlePrintSingleWorker(worker.id)}
-                            className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 px-2.5 py-1.5 text-xs font-bold text-emerald-700 transition-colors dark:bg-emerald-950/40 dark:text-emerald-400 dark:hover:bg-emerald-905 cursor-pointer"
+                            className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 px-2.5 py-1.5 text-xs font-bold text-emerald-700 transition-colors dark:bg-emerald-950/40 dark:text-emerald-400 cursor-pointer"
                           >
                             <i className="fa-solid fa-file-pdf"></i>
-                            પીડીએફ (PDF)
+                            {t('printSingleBtn')}
                           </button>
                         </div>
                       </td>
@@ -253,7 +286,7 @@ export default function ReportsView({
       </div>
 
       {/* ========================================================================= */}
-      {/* 🖨️ મલ્ટી-પેજ પ્રિન્ટ અને પીડીએફ રિપોર્ટ સેક્શન (ફક્ત પીડીએફ પ્રિન્ટમાં જ સરસ દેખાશે) */}
+      {/* 🖨️ Multi-Page Print & PDF Section */}
       {/* ========================================================================= */}
       <div className="hidden print:block bg-white text-black p-4 space-y-8 font-sans">
         
@@ -261,13 +294,17 @@ export default function ReportsView({
         {printTarget === 'all' && (
           <div className="border-b-4 border-teal-600 pb-5 flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-black text-teal-850">"હાજરી" - માસિક સંપૂર્ણ હિસાબી અહેવાલ</h1>
+              <h1 className="text-2xl font-black text-teal-850">
+                {language === 'en' ? 'Monthly Wage & Attendance Statement' : '"હાજરી" - માસિક સંપૂર્ણ હિસાબી અહેવાલ'}
+              </h1>
               <p className="text-xs text-gray-500 mt-1">
-                મહિનો: <span className="font-bold text-teal-700">{activeMonthLabel} - {selectedYear}</span> | રિપોર્ટ કાઢ્યા તારીખ: {new Date().toLocaleDateString('gu-IN')}
+                {language === 'en' ? 'Month:' : 'મહિનો:'} <span className="font-bold text-teal-700">{activeMonthLabel} - {selectedYear}</span> | {language === 'en' ? 'Generated on:' : 'રિપોર્ટ કાઢ્યા તારીખ:'} {new Date().toLocaleDateString(language === 'en' ? 'en-IN' : 'gu-IN')}
               </p>
             </div>
-            <div className="text-right border border-teal-200 bg-teal-55 px-3 py-1 rounded-lg">
-              <span className="text-xs font-bold text-teal-800">અધિકૃત હિસાબપત્રક</span>
+            <div className="text-right border border-teal-200 bg-teal-50 px-3 py-1 rounded-lg">
+              <span className="text-xs font-bold text-teal-800">
+                {language === 'en' ? 'Official Statement' : 'અધિકૃત હિસાબપત્રક'}
+              </span>
             </div>
           </div>
         )}
@@ -276,27 +313,27 @@ export default function ReportsView({
         {printTarget === 'all' && (
           <div className="grid grid-cols-3 gap-4 border border-gray-200 rounded-xl p-4 bg-gray-50/50">
             <div>
-              <span className="text-[10px] text-gray-500 font-bold block">કુલ કારીગરો</span>
+              <span className="text-[10px] text-gray-500 font-bold block">{t('totalWorkers')}</span>
               <span className="text-lg font-black text-slate-800">{stats.totalWorkers}</span>
             </div>
             <div>
-              <span className="text-[10px] text-gray-500 font-bold block">કુલ હાજર દિવસો</span>
+              <span className="text-[10px] text-gray-500 font-bold block">{t('totalPresentDays')}</span>
               <span className="text-lg font-black text-emerald-600">{stats.totalPresent}</span>
             </div>
             <div>
-              <span className="text-[10px] text-gray-500 font-bold block">કુલ ગેરહાજર દિવસો</span>
+              <span className="text-[10px] text-gray-500 font-bold block">{t('totalAbsentDays')}</span>
               <span className="text-lg font-black text-rose-600">{stats.totalAbsent}</span>
             </div>
             <div className="border-t border-gray-100 pt-2.5">
-              <span className="text-[10px] text-gray-500 font-bold block">કુલ બનેલ કમાણી (જમા રકમ)</span>
+              <span className="text-[10px] text-gray-500 font-bold block">{t('totalEarnings')}</span>
               <span className="text-base font-black text-teal-700">{formatCurrency(stats.totalEarnings)}</span>
             </div>
             <div className="border-t border-gray-100 pt-2.5">
-              <span className="text-[10px] text-gray-500 font-bold block">કુલ ચૂકવેલ રકમ (ઉપાડ)</span>
+              <span className="text-[10px] text-gray-500 font-bold block">{t('totalAdvance')}</span>
               <span className="text-base font-black text-amber-700">{formatCurrency(stats.totalUpad)}</span>
             </div>
             <div className="border-t border-gray-100 pt-2.5">
-              <span className="text-[10px] text-gray-500 font-bold block">કુલ ચૂકવવાની બાકી રકમ</span>
+              <span className="text-[10px] text-gray-500 font-bold block">{t('netPayable')}</span>
               <span className="text-base font-black text-purple-700">{formatCurrency(stats.totalBalance)}</span>
             </div>
           </div>
@@ -306,36 +343,37 @@ export default function ReportsView({
         {printTarget === 'all' && (
           <div className="space-y-3">
             <h3 className="text-sm font-bold text-teal-900 border-b pb-1">
-              ૧. બધા કારીગરોનું એકીકૃત માસિક પગાર અને બાકી પત્રક
+              {language === 'en' ? '1. Consolidated Monthly Wage and Balance Sheet' : '૧. બધા કારીગરોનું એકીકૃત માસિક પગાર અને બાકી પત્રક'}
             </h3>
             <table className="w-full text-xs border-collapse border border-gray-200 text-left">
               <thead className="bg-gray-100">
                 <tr>
-                  <th className="border border-gray-200 p-2">કારીગર નામ</th>
-                  <th className="border border-gray-200 p-2 text-center">રોજનો રોજ (₹)</th>
-                  <th className="border border-gray-200 p-2 text-center">હાજર</th>
-                  <th className="border border-gray-200 p-2 text-center">ગેરહાજર</th>
-                  <th className="border border-gray-200 p-2 text-right">કુલ કમાણી (જમા) (₹)</th>
-                  <th className="border border-gray-200 p-2 text-right">ચૂકવેલ રકમ / ઉપાડ (₹)</th>
-                  <th className="border border-gray-200 p-2 text-right">ચૂકવવાની બાકી (₹)</th>
+                  <th className="border border-gray-200 p-2">{t('tableWorkerName')}</th>
+                  <th className="border border-gray-200 p-2 text-center">{t('tableDailyWage')}</th>
+                  <th className="border border-gray-200 p-2 text-center">{language === 'en' ? 'Present' : 'હાજર'}</th>
+                  <th className="border border-gray-200 p-2 text-center">{language === 'en' ? 'Absent' : 'ગેરહાજર'}</th>
+                  <th className="border border-gray-200 p-2 text-right">{t('tableTotalEarnings')}</th>
+                  <th className="border border-gray-200 p-2 text-right">{t('tableTotalUpad')}</th>
+                  <th className="border border-gray-200 p-2 text-right">{t('tableBalance')}</th>
                 </tr>
               </thead>
               <tbody>
                 {reportWorkers.map((w) => {
                   const k = `${w.id}_${selectedYear}_${selectedMonth}`;
                   const att = attendanceDB[k] || {};
-                  const t = calculateWorkerTotals(att, w.dailyWage, daysCount);
+                  const wage = getWorkerWageForMonth(w, selectedYear, selectedMonth);
+                  const tRec = calculateWorkerTotals(att, wage, daysCount);
                   return (
                     <tr key={w.id}>
                       <td className="border border-gray-200 p-2 font-medium text-slate-900">
-                        {w.name} (સાઇટ: {w.village}){w.mobile ? ` - મો: ${w.mobile}` : ''}
+                        {w.name} ({language === 'en' ? 'Site' : 'સાઇટ'}: {w.village}){w.mobile ? ` - ${language === 'en' ? 'Mo' : 'મો'}: ${w.mobile}` : ''}
                       </td>
-                      <td className="border border-gray-200 p-2 text-center">₹{w.dailyWage}</td>
-                      <td className="border border-gray-200 p-2 text-center font-bold text-emerald-700">{t.presentDays}</td>
-                      <td className="border border-gray-200 p-2 text-center font-bold text-rose-700">{t.absentDays}</td>
-                      <td className="border border-gray-200 p-2 text-right font-bold text-teal-700">₹{t.totalEarnings.toLocaleString('gu-IN')}</td>
-                      <td className="border border-gray-200 p-2 text-right font-bold text-amber-700">₹{t.totalUpad.toLocaleString('gu-IN')}</td>
-                      <td className="border border-gray-200 p-2 text-right font-black text-slate-900">₹{t.balance.toLocaleString('gu-IN')}</td>
+                      <td className="border border-gray-200 p-2 text-center">₹{wage}</td>
+                      <td className="border border-gray-200 p-2 text-center font-bold text-emerald-700">{tRec.presentDays}</td>
+                      <td className="border border-gray-200 p-2 text-center font-bold text-rose-700">{tRec.absentDays}</td>
+                      <td className="border border-gray-200 p-2 text-right font-bold text-teal-700">₹{tRec.totalEarnings.toLocaleString('en-IN')}</td>
+                      <td className="border border-gray-200 p-2 text-right font-bold text-amber-700">₹{tRec.totalUpad.toLocaleString('en-IN')}</td>
+                      <td className="border border-gray-200 p-2 text-right font-black text-slate-900">₹{tRec.balance.toLocaleString('en-IN')}</td>
                     </tr>
                   );
                 })}
@@ -348,7 +386,7 @@ export default function ReportsView({
         <div className="pt-2">
           {printTarget === 'all' && (
             <h3 className="text-sm font-bold text-teal-900 border-b pb-1 mb-4">
-              ૨. કારીગરો વાઇસ દૈનિક હાજરી, રોજનો ઉપાડ અને વિગતવાર નોંધો
+              {language === 'en' ? '2. Worker-wise Daily Attendance and Advance Logs' : '૨. કારીગરો વાઇસ દૈનિક હાજરી, રોજનો ઉપાડ અને વિગતવાર નોંધો'}
             </h3>
           )}
 
@@ -357,8 +395,9 @@ export default function ReportsView({
             .map((worker) => {
               const k = `${worker.id}_${selectedYear}_${selectedMonth}`;
               const att = attendanceDB[k] || {};
-              const t = calculateWorkerTotals(att, worker.dailyWage, daysCount);
-              const daysArray = Array.from({ length: daysCount }, (_, i) => i + 1);
+              const wage = getWorkerWageForMonth(worker, selectedYear, selectedMonth);
+              const tRec = calculateWorkerTotals(att, wage, daysCount);
+              const daysArr = Array.from({ length: daysCount }, (_, i) => i + 1);
 
               return (
                 <div 
@@ -370,14 +409,16 @@ export default function ReportsView({
                     <div className="border-b-4 border-teal-600 pb-5 mb-6 flex items-center justify-between">
                       <div>
                         <h1 className="text-2xl font-black text-teal-900 font-sans">
-                          👷 કારીગર માસિક હાજરીપત્રક અને ઉપાડ અહેવાલ
+                          {language === 'en' ? 'Worker Monthly Attendance & Wage Slip' : '👷 કારીગર માસિક હાજરીપત્રક અને ઉપાડ અહેવાલ'}
                         </h1>
                         <p className="text-xs text-gray-500 mt-1">
-                          મહિનો: <span className="font-bold text-teal-700">{activeMonthLabel} - {selectedYear}</span> | રિપોર્ટ કાઢ્યા તારીખ: {new Date().toLocaleDateString('gu-IN')}
+                          {language === 'en' ? 'Month:' : 'મહિનો:'} <span className="font-bold text-teal-700">{activeMonthLabel} - {selectedYear}</span> | {language === 'en' ? 'Generated on:' : 'રિપોર્ટ કાઢ્યા તારીખ:'} {new Date().toLocaleDateString(language === 'en' ? 'en-IN' : 'gu-IN')}
                         </p>
                       </div>
                       <div className="text-right border border-teal-200 bg-teal-50 px-3 py-1.5 rounded-lg">
-                        <span className="text-xs font-bold text-teal-800">વ્યક્તિગત હિસાબપત્રક</span>
+                        <span className="text-xs font-bold text-teal-800">
+                          {t('printSlipTitle')}
+                        </span>
                       </div>
                     </div>
                   )}
@@ -385,8 +426,10 @@ export default function ReportsView({
                   {/* Individual strip header */}
                   <div className="bg-teal-50/50 p-3 rounded-lg border border-teal-100 flex justify-between items-center mb-3">
                     <div>
-                      <h4 className="text-sm font-bold text-teal-950">👷 કારીગર: {worker.name}</h4>
-                      <p className="text-[10px] text-teal-800/80 mt-0.5">🏗️ સાઇટ: {worker.village}{worker.mobile ? ` | 📞 મો: ${worker.mobile}` : ''} | દૈનિક રોજ: ₹{worker.dailyWage}</p>
+                      <h4 className="text-sm font-bold text-teal-950">👷 {worker.name}</h4>
+                      <p className="text-[10px] text-teal-800/80 mt-0.5">
+                        🏗️ {language === 'en' ? 'Site' : 'સાઇટ'}: {worker.village}{worker.mobile ? ` | 📞 ${language === 'en' ? 'Mo' : 'મો'}: ${worker.mobile}` : ''} | {t('tableDailyWage')}: ₹{wage}
+                      </p>
                     </div>
                     <div className="text-right">
                       <p className="text-[11px] font-bold text-teal-900">{activeMonthLabel} - {selectedYear}</p>
@@ -397,29 +440,39 @@ export default function ReportsView({
                   <table className="w-full text-[10px] border-collapse border border-gray-200 mb-3 text-left">
                     <thead className="bg-gray-50">
                       <tr>
-                        <th className="border border-gray-200 p-1 text-center w-8">તારીખ</th>
-                        <th className="border border-gray-200 p-1 text-center w-24">હાજરી હાલો</th>
-                        <th className="border border-gray-200 p-1 text-right w-24">લેલો ઉપાડ (₹)</th>
-                        <th className="border border-gray-200 p-1">અન્ય કોમેન્ટ તથા રજીસ્ટર નોંધો</th>
+                        <th className="border border-gray-200 p-1 text-center w-8">{t('dateCol')}</th>
+                        <th className="border border-gray-200 p-1 text-center w-24">{t('statusCol')}</th>
+                        <th className="border border-gray-200 p-1 text-right w-24">{t('upadCol')}</th>
+                        <th className="border border-gray-200 p-1">{t('noteCol')}</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {daysArray.map((day) => {
+                      {daysArr.map((day) => {
                         const record = att[day] || { status: '', upad: 0, note: '' };
                         return (
                           <tr key={day} className={day % 2 === 0 ? 'bg-gray-50/30' : 'bg-white'}>
                             <td className="border border-gray-200 p-1 text-center font-bold">{day}</td>
                             <td className="border border-gray-200 p-1 text-center">
                               {record.status === 'P' ? (
-                                <span className="text-emerald-700 font-bold bg-emerald-50 px-1 border border-emerald-200 rounded">હાજર (P)</span>
+                                <span className="text-emerald-700 font-bold bg-emerald-50 px-1 border border-emerald-200 rounded">
+                                  {language === 'en' ? 'Present (P)' : 'હાજર (P)'}
+                                </span>
                               ) : record.status === 'A' ? (
-                                <span className="text-rose-700 font-bold bg-rose-50 px-1 border border-rose-200 rounded">ગેરહાજર (A)</span>
+                                <span className="text-rose-700 font-bold bg-rose-50 px-1 border border-rose-200 rounded">
+                                  {language === 'en' ? 'Absent (A)' : 'ગેરહાજર (A)'}
+                                </span>
                               ) : record.status === 'H' ? (
-                                <span className="text-amber-700 font-bold bg-amber-50 px-1 border border-amber-200 rounded">અડધો દિવસ (H)</span>
+                                <span className="text-amber-700 font-bold bg-amber-50 px-1 border border-amber-200 rounded">
+                                  {language === 'en' ? 'Half Day (H)' : 'અડધો દિવસ (H)'}
+                                </span>
                               ) : record.status === 'O' ? (
-                                <span className="text-cyan-700 font-bold bg-cyan-50 px-1 border border-cyan-200 rounded">ઓવર ટાઈમ (O)</span>
+                                <span className="text-cyan-700 font-bold bg-cyan-50 px-1 border border-cyan-200 rounded">
+                                  {language === 'en' ? 'Overtime (O)' : 'ઓવર ટાઈમ (O)'}
+                                </span>
                               ) : record.status === 'D' ? (
-                                <span className="text-purple-700 font-bold bg-purple-50 px-1 border border-purple-200 rounded">ડબલ OT (D)</span>
+                                <span className="text-purple-700 font-bold bg-purple-50 px-1 border border-purple-200 rounded">
+                                  {language === 'en' ? 'Double (D)' : 'ડબલ OT (D)'}
+                                </span>
                               ) : (
                                 <span className="text-gray-400">-</span>
                               )}
@@ -439,34 +492,34 @@ export default function ReportsView({
                   {/* Summary footer for this specific worker to make it clear */}
                   <div className="grid grid-cols-5 gap-2 text-center text-[10px] bg-slate-50 p-2 rounded-lg border border-slate-100">
                     <div>
-                      <span className="text-gray-500 font-semibold block">હાજર દિવસ</span>
-                      <span className="text-xs font-bold text-emerald-700">{t.presentDays}</span>
+                      <span className="text-gray-500 font-semibold block">{language === 'en' ? 'Present Days' : 'હાજર દિવસ'}</span>
+                      <span className="text-xs font-bold text-emerald-700">{tRec.presentDays}</span>
                     </div>
                     <div>
-                      <span className="text-gray-500 font-semibold block">ગેરહાજર</span>
-                      <span className="text-xs font-bold text-rose-700">{t.absentDays}</span>
+                      <span className="text-gray-500 font-semibold block">{language === 'en' ? 'Absent Days' : 'ગેરહાજર'}</span>
+                      <span className="text-xs font-bold text-rose-700">{tRec.absentDays}</span>
                     </div>
                     <div>
-                      <span className="text-gray-500 font-semibold block">કુલ કમાણી (જમા)</span>
-                      <span className="text-xs font-bold text-teal-800">₹{t.totalEarnings}</span>
+                      <span className="text-gray-500 font-semibold block">{t('tableTotalEarnings')}</span>
+                      <span className="text-xs font-bold text-teal-800">₹{tRec.totalEarnings}</span>
                     </div>
                     <div>
-                      <span className="text-gray-500 font-semibold block">કુલ ચૂકવેલ રકમ</span>
-                      <span className="text-xs font-bold text-amber-700">₹{t.totalUpad}</span>
+                      <span className="text-gray-500 font-semibold block">{t('tableTotalUpad')}</span>
+                      <span className="text-xs font-bold text-amber-700">₹{tRec.totalUpad}</span>
                     </div>
                     <div>
-                      <span className="text-gray-500 font-semibold block">બાકી ચૂકવણી</span>
-                      <span className="text-xs font-black text-purple-700">₹{t.balance}</span>
+                      <span className="text-gray-500 font-semibold block">{t('tableBalance')}</span>
+                      <span className="text-xs font-black text-purple-700">₹{tRec.balance}</span>
                     </div>
                   </div>
 
                   {/* Standard Signatures line for approval and handovers */}
                   <div className="mt-8 grid grid-cols-2 gap-8 text-center text-[10px] font-bold text-gray-600 pt-6">
                     <div className="pt-6 border-t border-dashed border-gray-300">
-                      ✍️ કારીગરની સહી (Worker's Signature)
+                      ✍️ {language === 'en' ? "Worker's Signature" : "કારીગરની સહી (Worker's Signature)"}
                     </div>
                     <div className="pt-6 border-t border-dashed border-gray-300">
-                      ✍️ માલિક / સેઠની સહી (Owner's Signature)
+                      ✍️ {language === 'en' ? "Employer's Signature" : "માલિક / સેઠની સહી (Employer's Signature)"}
                     </div>
                   </div>
                 </div>
@@ -476,5 +529,4 @@ export default function ReportsView({
       </div>
     </div>
   );
-
 }
