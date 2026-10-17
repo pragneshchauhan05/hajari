@@ -195,6 +195,10 @@ export const mergeWorkers = (
       wageHistory: Object.keys(combinedHistory).length > 0 ? combinedHistory : undefined,
       inactiveMonths: resolvedInactive.length > 0 ? resolvedInactive : undefined,
       isDeleted: resolvedIsDeleted,
+      specificMonthOnly: lw?.specificMonthOnly || cw.specificMonthOnly,
+      activeMonthsOnly: Array.from(new Set([...(lw?.activeMonthsOnly || []), ...(cw.activeMonthsOnly || [])])).length > 0
+        ? Array.from(new Set([...(lw?.activeMonthsOnly || []), ...(cw.activeMonthsOnly || [])]))
+        : undefined,
       updatedAt: latestUpdatedAt,
     };
   });

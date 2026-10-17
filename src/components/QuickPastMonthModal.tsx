@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Worker, MonthlyWorkerAttendance } from '../types';
-import { getDaysInMonth, YEARS, getWorkerWageForMonth } from '../utils/attendanceUtils';
+import { getDaysInMonth, YEARS, getWorkerWageForMonth, isWorkerScopedToSpecificMonth, isWorkerAssignedToMonth } from '../utils/attendanceUtils';
 import { useLanguage } from '../context/LanguageContext';
 import { formatIndianCurrency } from '../utils/translations';
 
@@ -77,18 +77,28 @@ export default function QuickPastMonthModal({
   // Total days in selected target month
   const totalDaysInTargetMonth = getDaysInMonth(targetYear, targetMonth);
 
-  // Active non-deleted workers
-  const activeWorkers = workers.filter((w) => !w.isDeleted);
+  // Active non-deleted workers (respecting month-scoped workers so they only appear for their target month)
+  const activeWorkers = workers.filter((w) => {
+    if (w.isDeleted) return false;
+    if (isWorkerScopedToSpecificMonth(w) && !isWorkerAssignedToMonth(w, targetMonth, targetYear)) {
+      return false;
+    }
+    return true;
+  });
 
-  // Initialize selected worker and wage when opening
+  // Initialize selected worker and wage when opening or when target period changes
   useEffect(() => {
     if (isOpen) {
       setSavedSuccess(false);
       setErrorMessage('');
-      if (activeWorkers.length > 0 && !selectedWorkerId) {
+      const isSelectedValid = activeWorkers.some((w) => w.id === selectedWorkerId);
+      if (activeWorkers.length > 0 && (!selectedWorkerId || !isSelectedValid)) {
         setSelectedWorkerId(activeWorkers[0].id);
         const wWage = getWorkerWageForMonth(activeWorkers[0], targetYear, targetMonth);
         setDailyWage(wWage || 500);
+      } else if (activeWorkers.length === 0) {
+        setSelectedWorkerId('');
+        setDailyWage(500);
       }
     }
   }, [isOpen, activeWorkers, selectedWorkerId, targetYear, targetMonth]);

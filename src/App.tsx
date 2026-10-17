@@ -9,7 +9,7 @@ import WorkersView from './components/WorkersView';
 import AttendanceView from './components/AttendanceView';
 import ReportsView from './components/ReportsView';
 import AdminPanelView from './components/AdminPanelView';
-import { Worker, MonthlyWorkerAttendance, ActiveTab, AttendanceStatus } from './types';
+import { Worker, MonthlyWorkerAttendance, ActiveTab, AttendanceStatus, isUserAdmin, ADMIN_EMAIL } from './types';
 import { getDaysInMonth, getWorkerWageForMonth } from './utils/attendanceUtils';
 import { exportBackupToFile, importBackupFromFile } from './utils/backupExportImport';
 import { User } from 'firebase/auth';
@@ -44,8 +44,30 @@ export default function App() {
     if (saved) {
       try {
         const parsed = JSON.parse(saved) as Worker[];
+        // Auto-scope any worker previously created via QuickPastMonthModal without specificMonthOnly
+        const sanitized = parsed.map((w) => {
+          if (w.id.startsWith('w_') && !w.specificMonthOnly && (!w.activeMonthsOnly || w.activeMonthsOnly.length === 0)) {
+            const histKeys = Object.keys(w.wageHistory || {}).filter((k) => k !== '2020-01');
+            if (histKeys.length === 1) {
+              const [y, m] = histKeys[0].split('-').map(Number);
+              if (y && m) {
+                return {
+                  ...w,
+                  specificMonthOnly: `${y}-${m}`,
+                  activeMonthsOnly: [
+                    `${y}-${m}`,
+                    `${y}_${m}`,
+                    `${y}-${String(m).padStart(2, '0')}`,
+                    `${y}_${String(m).padStart(2, '0')}`,
+                  ],
+                };
+              }
+            }
+          }
+          return w;
+        });
         // Only exclude initial mock demo IDs and explicit foreign account email
-        return parsed.filter((w) => {
+        return sanitized.filter((w) => {
           if (w.id === 'demo-worker-1' || w.id === 'demo-worker-2') return false;
           const wEmail = (w.userEmail || '').trim().toLowerCase();
           if (wEmail.includes('bharatchauhan103')) return false;
@@ -283,6 +305,17 @@ export default function App() {
       document.documentElement.classList.remove('dark');
     }
   }, [isDarkMode]);
+
+  // Guard Admin tab: Only authorized super admin (pragneshc517@gmail.com) can access!
+  useEffect(() => {
+    if (activeTab === 'admin' && !isUserAdmin(user)) {
+      setActiveTab('dashboard');
+      setStatusMessage({
+        text: `એડમિન કંટ્રોલ પેનલ માત્ર અધિકૃત સુપર એડમિન (${ADMIN_EMAIL}) માટે જ ઉપલબ્ધ છે.`,
+        type: 'error',
+      });
+    }
+  }, [activeTab, user]);
 
   const isFirstRender = useRef(true);
   const isApplyingCloudUpdateRef = useRef(false);
@@ -1020,6 +1053,7 @@ export default function App() {
     let updatedWorkersList: Worker[] = [];
 
     if (data.isNewWorker && data.workerData) {
+      const targetMonthKey = `${data.year}-${data.month}`;
       const newWorker: Worker = {
         id: finalWorkerId,
         name: data.workerData.name,
@@ -1031,6 +1065,16 @@ export default function App() {
         },
         mobile: data.workerData.mobile || '',
         updatedAt: now,
+        userId: user?.uid,
+        userEmail: user?.email || '',
+        // Restrict worker strictly to the created month as requested by user
+        specificMonthOnly: targetMonthKey,
+        activeMonthsOnly: [
+          targetMonthKey,
+          `${data.year}_${data.month}`,
+          `${data.year}-${String(data.month).padStart(2, '0')}`,
+          `${data.year}_${String(data.month).padStart(2, '0')}`,
+        ],
       };
       setWorkers((prev) => {
         const nextWorkers = [...prev, newWorker];
@@ -1073,11 +1117,26 @@ export default function App() {
           const existingInactive = w.inactiveMonths || [];
           const cleanInactive = existingInactive.filter((p) => p !== k1 && p !== k2 && p !== k3);
 
+          // If this worker was scoped to specific past month(s), also allow this target month
+          let nextActiveMonthsOnly = w.activeMonthsOnly ? [...w.activeMonthsOnly] : undefined;
+          if (w.specificMonthOnly && !nextActiveMonthsOnly) {
+            nextActiveMonthsOnly = [w.specificMonthOnly];
+          }
+          if (nextActiveMonthsOnly) {
+            const mKey1 = `${data.year}-${data.month}`;
+            const mKey2 = `${data.year}_${data.month}`;
+            const mKey3 = `${data.year}-${String(data.month).padStart(2, '0')}`;
+            if (!nextActiveMonthsOnly.includes(mKey1)) nextActiveMonthsOnly.push(mKey1);
+            if (!nextActiveMonthsOnly.includes(mKey2)) nextActiveMonthsOnly.push(mKey2);
+            if (!nextActiveMonthsOnly.includes(mKey3)) nextActiveMonthsOnly.push(mKey3);
+          }
+
           return {
             ...w,
             dailyWage: latestWage,
             wageHistory: currentHist,
             inactiveMonths: cleanInactive,
+            activeMonthsOnly: nextActiveMonthsOnly,
             updatedAt: now,
           };
         });
@@ -1283,21 +1342,42 @@ export default function App() {
             )}
 
             {activeTab === 'admin' && (
-              <AdminPanelView
-                workers={workers}
-                attendanceDB={attendanceDB}
-                user={user}
-                isLoggingIn={isLoggingIn}
-                isBackingUp={isBackingUp}
-                isRestoring={isRestoring}
-                statusMessage={statusMessage}
-                onLogin={handleLogin}
-                onLogout={handleLogout}
-                onBackup={handleBackup}
-                onRestore={handleRestore}
-                onExportBackup={handleExportBackup}
-                onImportBackup={handleImportBackup}
-              />
+              isUserAdmin(user) ? (
+                <AdminPanelView
+                  workers={workers}
+                  attendanceDB={attendanceDB}
+                  user={user}
+                  isLoggingIn={isLoggingIn}
+                  isBackingUp={isBackingUp}
+                  isRestoring={isRestoring}
+                  statusMessage={statusMessage}
+                  onLogin={handleLogin}
+                  onLogout={handleLogout}
+                  onBackup={handleBackup}
+                  onRestore={handleRestore}
+                  onExportBackup={handleExportBackup}
+                  onImportBackup={handleImportBackup}
+                />
+              ) : (
+                <div className="rounded-3xl border border-rose-200 bg-rose-50/70 p-8 text-center space-y-4 dark:border-rose-900/50 dark:bg-rose-950/20 max-w-xl mx-auto my-6">
+                  <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-rose-100 text-rose-600 text-2xl font-bold dark:bg-rose-900/40 dark:text-rose-400">
+                    <i className="fa-solid fa-lock"></i>
+                  </div>
+                  <h3 className="text-lg font-black text-rose-950 dark:text-rose-200">
+                    એક્સેસ પ્રતિબંધિત (Access Denied)
+                  </h3>
+                  <p className="text-xs text-rose-800 dark:text-rose-300">
+                    એડમિન કંટ્રોલ પેનલ માત્ર અધિકૃત સુપર એડમિન ({ADMIN_EMAIL}) માટે જ ઉપલબ્ધ છે.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('dashboard')}
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold cursor-pointer transition-all"
+                  >
+                    મુખ્ય ડેશબોર્ડ પર જાઓ
+                  </button>
+                </div>
+              )
             )}
           </section>
         </div>

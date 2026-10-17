@@ -14,9 +14,24 @@ service cloud.firestore {
       return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
     }
 
-    // 2. Workers Rules Block: Strictly isolated per user
+    function isAdmin() {
+      return isSignedIn() && request.auth.token.email != null && request.auth.token.email.lower() == 'pragneshc517@gmail.com';
+    }
+
+    // 2. Users Collection Block: User profile registration and Admin supervision
+    match /users/{userId} {
+      allow read: if isSignedIn() && (request.auth.uid == userId || isAdmin());
+      allow create, update: if isSignedIn() && (request.auth.uid == userId || isAdmin()) && isValidId(userId);
+      allow delete: if isAdmin();
+    }
+
+    // 3. Workers Rules Block: Isolated per user, readable by owner and super admin
     match /workers/{workerId} {
-      allow read: if isSignedIn();
+      allow read: if isSignedIn() && (
+        resource.data.userId == request.auth.uid || 
+        (resource.data.userEmail != null && request.auth.token.email != null && resource.data.userEmail == request.auth.token.email) ||
+        isAdmin()
+      );
       
       allow create: if isSignedIn() && isValidId(workerId)
         && (request.resource.data.userId == request.auth.uid || (request.auth.token.email != null && request.resource.data.userEmail == request.auth.token.email))
@@ -30,7 +45,7 @@ service cloud.firestore {
         && request.resource.data.mobile.size() <= 20;
 
       allow update: if isSignedIn() && isValidId(workerId)
-        && (resource.data.userId == request.auth.uid || (resource.data.userEmail != null && request.auth.token.email != null && resource.data.userEmail == request.auth.token.email))
+        && (resource.data.userId == request.auth.uid || (resource.data.userEmail != null && request.auth.token.email != null && resource.data.userEmail == request.auth.token.email) || isAdmin())
         && request.resource.data.name is string 
         && request.resource.data.name.size() <= 150
         && request.resource.data.village is string 
@@ -42,13 +57,18 @@ service cloud.firestore {
 
       allow delete: if isSignedIn() && (
         resource.data.userId == request.auth.uid || 
-        (resource.data.userEmail != null && request.auth.token.email != null && resource.data.userEmail == request.auth.token.email)
+        (resource.data.userEmail != null && request.auth.token.email != null && resource.data.userEmail == request.auth.token.email) ||
+        isAdmin()
       );
     }
 
-    // 3. Attendance Rules Block: Strictly isolated per user
+    // 4. Attendance Rules Block: Isolated per user, readable by owner and super admin
     match /attendance/{attendanceId} {
-      allow read: if isSignedIn();
+      allow read: if isSignedIn() && (
+        resource.data.userId == request.auth.uid || 
+        (resource.data.userEmail != null && request.auth.token.email != null && resource.data.userEmail == request.auth.token.email) ||
+        isAdmin()
+      );
       
       allow create: if isSignedIn() && isValidId(attendanceId)
         && (request.resource.data.userId == request.auth.uid || (request.auth.token.email != null && request.resource.data.userEmail == request.auth.token.email))
@@ -58,7 +78,7 @@ service cloud.firestore {
         && request.resource.data.records is map;
 
       allow update: if isSignedIn() && isValidId(attendanceId)
-        && (resource.data.userId == request.auth.uid || (resource.data.userEmail != null && request.auth.token.email != null && resource.data.userEmail == request.auth.token.email))
+        && (resource.data.userId == request.auth.uid || (resource.data.userEmail != null && request.auth.token.email != null && resource.data.userEmail == request.auth.token.email) || isAdmin())
         && request.resource.data.workerId is string
         && request.resource.data.year is number
         && request.resource.data.month is number
@@ -66,7 +86,8 @@ service cloud.firestore {
 
       allow delete: if isSignedIn() && (
         resource.data.userId == request.auth.uid || 
-        (resource.data.userEmail != null && request.auth.token.email != null && resource.data.userEmail == request.auth.token.email)
+        (resource.data.userEmail != null && request.auth.token.email != null && resource.data.userEmail == request.auth.token.email) ||
+        isAdmin()
       );
     }
   }

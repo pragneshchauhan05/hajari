@@ -100,6 +100,51 @@
         "records",
         "userId"
       ]
+    },
+    "User": {
+      "title": "User",
+      "description": "Registered app user account profile for admin monitoring",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "description": "Firebase Auth UID"
+        },
+        "email": {
+          "type": "string",
+          "description": "User email address"
+        },
+        "displayName": {
+          "type": "string",
+          "description": "Display name of user"
+        },
+        "photoURL": {
+          "type": "string",
+          "description": "Profile photo URL"
+        },
+        "role": {
+          "type": "string",
+          "description": "Role: admin or user"
+        },
+        "workerCount": {
+          "type": "number",
+          "description": "Total active workers configured by this user"
+        },
+        "lastActive": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp of last app activity"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp when user first used the app"
+        }
+      },
+      "required": [
+        "uid",
+        "email"
+      ]
     }
   },
   "firestore": {
@@ -110,6 +155,10 @@
     "/attendance/{attendanceId}": {
       "schema": "Attendance",
       "description": "Collection of monthly attendance and upad records"
+    },
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "Collection of registered application users"
     }
   }
 }

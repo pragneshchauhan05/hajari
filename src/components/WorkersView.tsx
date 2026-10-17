@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { User } from 'firebase/auth';
 import { Worker } from '../types';
-import { isWorkerActiveInMonth, getWorkerWageForMonth } from '../utils/attendanceUtils';
+import { isWorkerActiveInMonth, getWorkerWageForMonth, isWorkerScopedToSpecificMonth, isWorkerAssignedToMonth } from '../utils/attendanceUtils';
 import { useLanguage } from '../context/LanguageContext';
 
 interface WorkersViewProps {
@@ -40,10 +40,18 @@ export default function WorkersView({
 
   const monthLabel = months.find((m) => m.value === selectedMonth)?.label || '';
 
-  // Separate active workers vs inactive workers for the currently selected month (excluding deleted workers)
-  const activeWorkers = workers.filter((w) => !w.isDeleted && isWorkerActiveInMonth(w, selectedMonth, selectedYear));
-  const inactiveWorkers = workers.filter((w) => !w.isDeleted && !isWorkerActiveInMonth(w, selectedMonth, selectedYear));
-  const deletedWorkers = workers.filter((w) => w.isDeleted === true);
+  // Workers created exclusively for a specific past month should only ever exist/appear for that specific month
+  const isWorkerVisibleInSelectedMonth = (w: Worker) => {
+    if (isWorkerScopedToSpecificMonth(w) && !isWorkerAssignedToMonth(w, selectedMonth, selectedYear)) {
+      return false;
+    }
+    return true;
+  };
+
+  // Separate active workers vs inactive workers for the currently selected month (excluding deleted workers and workers belonging to other months)
+  const activeWorkers = workers.filter((w) => !w.isDeleted && isWorkerVisibleInSelectedMonth(w) && isWorkerActiveInMonth(w, selectedMonth, selectedYear));
+  const inactiveWorkers = workers.filter((w) => !w.isDeleted && isWorkerVisibleInSelectedMonth(w) && !isWorkerActiveInMonth(w, selectedMonth, selectedYear));
+  const deletedWorkers = workers.filter((w) => w.isDeleted === true && isWorkerVisibleInSelectedMonth(w));
 
   // Local filter for active workers
   const filteredActiveWorkers = activeWorkers.filter((w) => {
@@ -94,31 +102,6 @@ export default function WorkersView({
         </div>
 
         <div className="flex flex-wrap items-center gap-2.5">
-          {onOpenQuickEntry && (
-            <button
-              type="button"
-              id="btn-quick-past-entry-workers"
-              onClick={onOpenQuickEntry}
-              className="flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 px-4 py-2.5 text-xs sm:text-sm font-bold text-white shadow-md shadow-emerald-100 transition-all select-none whitespace-nowrap dark:shadow-none cursor-pointer active:scale-95"
-              title={language === 'en' ? 'Quick Past Month Data Entry' : 'જૂના મહિનાનો હિસાબ એન્ટર કરો'}
-            >
-              <i className="fa-solid fa-bolt-lightning text-amber-300"></i>
-              <span>{language === 'en' ? 'Past Data Entry' : 'જૂના ડેટા એન્ટર કરો'}</span>
-            </button>
-          )}
-
-          {onRestore && (
-            <button
-              type="button"
-              onClick={onRestore}
-              className="flex items-center justify-center gap-2 rounded-xl border border-teal-200 bg-teal-50 px-3.5 py-2.5 text-xs font-bold text-teal-800 hover:bg-teal-100 transition-all cursor-pointer dark:bg-teal-950/40 dark:border-teal-900/50 dark:text-teal-300"
-              title={language === 'en' ? 'Restore from Cloud' : 'ક્લાઉડ માંથી ડેટા રીસ્ટોર કરો'}
-            >
-              <i className="fa-solid fa-cloud-arrow-down"></i>
-              <span>{language === 'en' ? 'Restore from Cloud' : 'ક્લાઉડ માંથી ડેટા રીસ્ટોર કરો'}</span>
-            </button>
-          )}
-
           <button
             id="btn-add-new-worker"
             onClick={onOpenAddModal}
@@ -178,6 +161,12 @@ export default function WorkersView({
                   <h4 className="text-lg font-bold text-gray-900 font-sans group-hover:text-teal-600 transition-colors dark:text-slate-100 dark:group-hover:text-teal-400">
                     👤 {worker.name}
                   </h4>
+                  {isWorkerScopedToSpecificMonth(worker) && (
+                    <span className="inline-flex items-center gap-1 mt-1 text-[10px] font-extrabold text-indigo-700 bg-indigo-50 border border-indigo-200/60 dark:bg-indigo-950/40 dark:text-indigo-300 dark:border-indigo-800/50 px-2 py-0.5 rounded-md">
+                      <i className="fa-solid fa-clock-rotate-left text-[9px]"></i>
+                      {monthLabel} {selectedYear} નો હિસાબ
+                    </span>
+                  )}
                   <div className="flex flex-col gap-1.5 mt-2">
                     <p className="text-xs text-gray-500 flex items-center gap-1">
                       <span className="inline-block px-2 py-0.5 rounded-md bg-gray-100 text-gray-700 font-bold dark:bg-slate-800 dark:text-slate-300">

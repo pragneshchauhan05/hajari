@@ -55,19 +55,8 @@ export default function Navbar({
           </div>
         </div>
 
-        {/* Month, Year Selectors + Quick Past Entry + Dark Mode Toggle */}
+        {/* Month, Year Selectors + Dark Mode Toggle */}
         <div className="flex items-center space-x-1 sm:space-x-2.5">
-          {onOpenQuickEntry && (
-            <button
-              type="button"
-              onClick={onOpenQuickEntry}
-              className="flex items-center gap-1 sm:gap-1.5 rounded-lg sm:rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white px-2 py-1 sm:px-2.5 sm:py-1.5 text-[11px] sm:text-xs font-black shadow-xs transition-all active:scale-95 cursor-pointer"
-              title={language === 'en' ? 'Quick Past Month Data Entry' : 'જૂના મહિનાનો હિસાબ એન્ટર કરો'}
-            >
-              <i className="fa-solid fa-bolt-lightning text-amber-300 text-[10px] sm:text-xs"></i>
-              <span>{language === 'en' ? 'Past Entry' : 'જૂનો હિસાબ'}</span>
-            </button>
-          )}
 
           {/* Quick Return to Current Month Button if an older/future month is picked */}
           {!isCurrentMonthSelected && (

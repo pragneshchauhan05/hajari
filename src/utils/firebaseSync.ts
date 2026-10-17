@@ -20,10 +20,11 @@ import {
   onSnapshot,
   disableNetwork,
   enableNetwork,
-  deleteDoc
+  deleteDoc,
+  setDoc,
 } from 'firebase/firestore';
 import firebaseConfig from '../../firebase-applet-config.json';
-import { Worker, MonthlyWorkerAttendance } from '../types';
+import { Worker, MonthlyWorkerAttendance, AppUser, isUserAdmin, ADMIN_EMAIL } from '../types';
 
 // Initialize Firebase App, Auth and Firestore
 const app = initializeApp(firebaseConfig);
@@ -213,6 +214,30 @@ export async function testConnection(force = false): Promise<boolean> {
   }
 }
 
+// Sync user profile record into Firestore 'users' collection
+export const syncUserProfileToFirestore = async (user: User, workerCount?: number) => {
+  if (!user || isQuotaExhausted()) return;
+  try {
+    const userRef = doc(db, 'users', user.uid);
+    const isAdmin = isUserAdmin(user);
+    await setDoc(
+      userRef,
+      {
+        uid: user.uid,
+        email: user.email || '',
+        displayName: user.displayName || user.email?.split('@')[0] || 'User',
+        photoURL: user.photoURL || '',
+        role: isAdmin ? 'admin' : 'user',
+        ...(typeof workerCount === 'number' ? { workerCount } : {}),
+        lastActive: new Date().toISOString(),
+      },
+      { merge: true }
+    );
+  } catch (err) {
+    console.warn('Could not sync user profile to Firestore:', err);
+  }
+};
+
 // Track ready/auth states
 export const initAuth = (
   onAuthSuccess?: (user: User) => void,
@@ -220,6 +245,7 @@ export const initAuth = (
 ) => {
   return onAuthStateChanged(auth, (user: User | null) => {
     if (user) {
+      syncUserProfileToFirestore(user).catch(() => {});
       if (onAuthSuccess) onAuthSuccess(user);
     } else {
       if (onAuthFailure) onAuthFailure();
@@ -231,6 +257,9 @@ export const initAuth = (
 export const googleSignIn = async (): Promise<User | null> => {
   try {
     const result = await signInWithPopup(auth, provider);
+    if (result.user) {
+      syncUserProfileToFirestore(result.user).catch(() => {});
+    }
     return result.user;
   } catch (error: any) {
     if (error?.code === 'auth/popup-closed-by-user') {
@@ -417,6 +446,23 @@ export const backupToFirestore = async (
         { merge: true }
       );
     }
+
+    // Also update user's profile and counts in 'users' collection
+    const userDocRef = doc(db, 'users', targetUserId);
+    batch.set(
+      userDocRef,
+      {
+        uid: targetUserId,
+        email: effectiveEmail,
+        displayName: currentAuthUser?.displayName || effectiveEmail.split('@')[0] || 'User',
+        photoURL: currentAuthUser?.photoURL || '',
+        role: isUserAdmin({ email: effectiveEmail }) ? 'admin' : 'user',
+        workerCount: ownWorkers.length,
+        recordsCount: Object.keys(attendanceDB).length,
+        lastActive: new Date().toISOString(),
+      },
+      { merge: true }
+    );
 
     await batch.commit();
 
@@ -868,5 +914,165 @@ export const purgeUserAccountData = async (targetUserId: string): Promise<void> 
     console.warn('Error purging user account data from Firestore:', err);
     throw err;
   }
+};
+
+/**
+ * Super Admin only: Fetches all registered users who use the app.
+ * Retrieves profiles from 'users' collection and discovers any unindexed users from workers.
+ */
+export const fetchAllUsersForAdmin = async (): Promise<AppUser[]> => {
+  const currentAuth = auth.currentUser;
+  if (!isUserAdmin(currentAuth)) {
+    throw new Error('Access denied. Administrator privileges required.');
+  }
+
+  await enableNetwork(db).catch(() => {});
+  clearQuotaExhausted();
+
+  const userMap = new Map<string, AppUser>();
+
+  // 1. Fetch all documents from 'users' collection
+  try {
+    const usersSnap = await getDocs(collection(db, 'users'));
+    usersSnap.forEach((docSnap) => {
+      const data = docSnap.data();
+      userMap.set(docSnap.id, {
+        uid: docSnap.id,
+        email: data.email || '',
+        displayName: data.displayName || data.email?.split('@')[0] || 'User',
+        photoURL: data.photoURL || '',
+        role: data.role || (data.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase() ? 'admin' : 'user'),
+        workerCount: typeof data.workerCount === 'number' ? data.workerCount : 0,
+        recordsCount: typeof data.recordsCount === 'number' ? data.recordsCount : 0,
+        lastActive: data.lastActive || '',
+        createdAt: data.createdAt || '',
+      });
+    });
+  } catch (err) {
+    console.warn('Error fetching users collection for admin:', err);
+  }
+
+  // 2. Discover users from workers collection (to catch any user whose profile doc wasn't written yet)
+  try {
+    const workersSnap = await getDocs(collection(db, 'workers'));
+    const userWorkerCount = new Map<string, number>();
+
+    workersSnap.forEach((docSnap) => {
+      const data = docSnap.data();
+      const uId = data.userId;
+      const uEmail = data.userEmail;
+      if (uId) {
+        userWorkerCount.set(uId, (userWorkerCount.get(uId) || 0) + 1);
+        if (!userMap.has(uId) && uEmail) {
+          userMap.set(uId, {
+            uid: uId,
+            email: uEmail,
+            displayName: uEmail.split('@')[0],
+            role: uEmail.toLowerCase() === ADMIN_EMAIL.toLowerCase() ? 'admin' : 'user',
+            workerCount: 1,
+            lastActive: data.updatedAt || '',
+          });
+        }
+      }
+    });
+
+    // Update worker counts if missing
+    userWorkerCount.forEach((count, uId) => {
+      const u = userMap.get(uId);
+      if (u && (!u.workerCount || u.workerCount === 0)) {
+        u.workerCount = count;
+      }
+    });
+  } catch (err) {
+    console.warn('Error discovering users from workers:', err);
+  }
+
+  // Ensure Admin (pragneshc517@gmail.com) is in the list
+  if (currentAuth && !userMap.has(currentAuth.uid)) {
+    userMap.set(currentAuth.uid, {
+      uid: currentAuth.uid,
+      email: currentAuth.email || ADMIN_EMAIL,
+      displayName: currentAuth.displayName || 'Pragnesh (Admin)',
+      photoURL: currentAuth.photoURL || '',
+      role: 'admin',
+    });
+  }
+
+  return Array.from(userMap.values()).sort((a, b) => {
+    // Admin first, then by last active
+    if (a.role === 'admin') return -1;
+    if (b.role === 'admin') return 1;
+    return (b.lastActive || '').localeCompare(a.lastActive || '');
+  });
+};
+
+/**
+ * Super Admin only: Fetches all workers and attendance records belonging to a target user.
+ */
+export const fetchUserDataForAdmin = async (
+  targetUserId: string,
+  targetUserEmail?: string
+): Promise<{ workers: Worker[]; attendanceDB: Record<string, MonthlyWorkerAttendance> }> => {
+  const currentAuth = auth.currentUser;
+  if (!isUserAdmin(currentAuth)) {
+    throw new Error('Access denied. Administrator privileges required.');
+  }
+
+  await enableNetwork(db).catch(() => {});
+  clearQuotaExhausted();
+
+  const fetchedWorkers: Worker[] = [];
+  const fetchedAttendance: Record<string, MonthlyWorkerAttendance> = {};
+
+  try {
+    // 1. Fetch target user's workers
+    let qWorkers = query(collection(db, 'workers'), where('userId', '==', targetUserId));
+    let snap = await getDocs(qWorkers);
+    if (snap.empty && targetUserEmail) {
+      qWorkers = query(collection(db, 'workers'), where('userEmail', '==', targetUserEmail));
+      snap = await getDocs(qWorkers);
+    }
+
+    snap.forEach((d) => {
+      const data = d.data();
+      fetchedWorkers.push({
+        id: d.id,
+        name: data.name || 'Unnamed',
+        village: data.village || '',
+        dailyWage: Number(data.dailyWage) || 0,
+        wageHistory: data.wageHistory || {},
+        mobile: data.mobile || '',
+        inactiveMonths: data.inactiveMonths || [],
+        isDeleted: data.isDeleted === true,
+        userId: data.userId || targetUserId,
+        userEmail: data.userEmail || targetUserEmail,
+        specificMonthOnly: data.specificMonthOnly,
+        activeMonthsOnly: data.activeMonthsOnly,
+      });
+    });
+  } catch (err) {
+    console.warn('Error fetching target user workers:', err);
+  }
+
+  try {
+    // 2. Fetch target user's attendance
+    let qAtt = query(collection(db, 'attendance'), where('userId', '==', targetUserId));
+    let snap = await getDocs(qAtt);
+    if (snap.empty && targetUserEmail) {
+      qAtt = query(collection(db, 'attendance'), where('userEmail', '==', targetUserEmail));
+      snap = await getDocs(qAtt);
+    }
+
+    snap.forEach((d) => {
+      const data = d.data();
+      if (data.records) {
+        fetchedAttendance[d.id] = data.records as MonthlyWorkerAttendance;
+      }
+    });
+  } catch (err) {
+    console.warn('Error fetching target user attendance:', err);
+  }
+
+  return { workers: fetchedWorkers, attendanceDB: fetchedAttendance };
 };
 

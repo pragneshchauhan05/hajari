@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Worker, MonthlyWorkerAttendance, AttendanceStatus } from '../types';
-import { getDaysInMonth, calculateWorkerTotals, isWorkerActiveInMonth, getWorkerWageForMonth } from '../utils/attendanceUtils';
+import { getDaysInMonth, calculateWorkerTotals, isWorkerActiveInMonth, getWorkerWageForMonth, isWorkerScopedToSpecificMonth, isWorkerAssignedToMonth } from '../utils/attendanceUtils';
 import { useLanguage } from '../context/LanguageContext';
 
 interface AttendanceViewProps {
@@ -37,6 +37,8 @@ export default function AttendanceView({
   const [searchQuery, setSearchQuery] = useState('');
   // Segmented inner tab inside worker's card: 'daily' | 'summary' | 'yearly'
   const [activeSubTab, setActiveSubTab] = useState<'daily' | 'summary' | 'yearly'>('daily');
+  // Daily attendance view mode: 'grid' (no-scroll month grid) vs 'list' (detailed table)
+  const [dailyViewMode, setDailyViewMode] = useState<'grid' | 'list'>('grid');
 
   // Order of cycling: Unmarked ('') -> Present ('P') -> Half ('H') -> Absent ('A') -> Overtime ('O') -> Double ('D') -> Unmarked ('')
   const getNextStatus = (current: AttendanceStatus): AttendanceStatus => {
@@ -83,9 +85,21 @@ export default function AttendanceView({
   const activeMonthLabel = months.find((m) => m.value === selectedMonth)?.label || '';
   const daysArray = Array.from({ length: daysCount }, (_, i) => i + 1);
 
+  // Check visibility for month-scoped past workers
+  const isWorkerVisibleInSelectedMonth = (w: Worker) => {
+    if (isWorkerScopedToSpecificMonth(w) && !isWorkerAssignedToMonth(w, selectedMonth, selectedYear)) {
+      return false;
+    }
+    return true;
+  };
+
   // Filter workers based on search query and month active status
   // If worker is marked as deleted, show them if they have attendance/upad records for this month
   const filteredWorkers = workers.filter((w) => {
+    if (!isWorkerVisibleInSelectedMonth(w)) {
+      return false;
+    }
+
     const key = `${w.id}_${selectedYear}_${selectedMonth}`;
     const monthlyData = attendanceDB[key];
     const hasData = monthlyData && Object.values(monthlyData).some((r) => Boolean(r.status) || (r.upad && r.upad > 0));
@@ -104,8 +118,8 @@ export default function AttendanceView({
     );
   });
 
-  // Check if we are viewing a specific selected worker
-  const selectedWorker = workers.find((w) => w.id === selectedWorkerId);
+  // Check if we are viewing a specific selected worker who is visible for this month
+  const selectedWorker = workers.find((w) => w.id === selectedWorkerId && isWorkerVisibleInSelectedMonth(w));
 
   // ------------------------------------------------------------------------
   // SELECTED WORKER MODE: "HAJARI CARD SYSTEM" VIEW
@@ -153,17 +167,6 @@ export default function AttendanceView({
               >
                 <i className="fa-solid fa-pen-to-square text-xs"></i>
                 <span>{language === 'en' ? 'Change Wage' : 'રોજ બદલો'}</span>
-              </button>
-            )}
-            {onOpenQuickEntry && (
-              <button
-                type="button"
-                onClick={onOpenQuickEntry}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white text-xs font-bold shadow-sm transition-all cursor-pointer active:scale-95"
-                title={language === 'en' ? 'Quick Past Month Data Entry' : 'જૂના મહિનાનો હિસાબ એન્ટર કરો'}
-              >
-                <i className="fa-solid fa-bolt-lightning text-amber-300 text-xs"></i>
-                <span>{language === 'en' ? 'Past Data' : 'જૂનો હિસાબ'}</span>
               </button>
             )}
           </div>
@@ -240,103 +243,211 @@ export default function AttendanceView({
           
           {/* TAB 1: DAILY ATTENDANCE ENTRIES */}
           {activeSubTab === 'daily' && (
-            <div className="space-y-4">
-              <div className="border-b border-gray-100 pb-3 flex items-center justify-between dark:border-slate-800">
+            <div className="space-y-3.5">
+              <div className="border-b border-gray-100 pb-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 dark:border-slate-800">
                 <h4 className="text-base sm:text-lg font-black text-teal-600 dark:text-teal-400 font-sans flex items-center gap-1.5">
                   <span className="text-teal-500 text-sm">🔴</span> {language === 'en' ? 'Daily Attendance' : 'દૈનિક નોંધ'} — {activeMonthLabel} {selectedYear}
                 </h4>
+
+                {/* View Switcher: No-Scroll Grid vs List View */}
+                <div className="flex items-center gap-1 bg-gray-100 dark:bg-slate-800/80 p-1 rounded-xl text-xs font-bold self-start sm:self-auto">
+                  <button
+                    type="button"
+                    onClick={() => setDailyViewMode('grid')}
+                    className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer ${
+                      dailyViewMode === 'grid'
+                        ? 'bg-teal-600 text-white shadow-xs'
+                        : 'text-gray-600 dark:text-slate-300 hover:text-teal-600'
+                    }`}
+                    title="1 થી 31 દિવસ વગર સ્ક્રોલ એ એક જ સ્ક્રીન પર જુઓ"
+                  >
+                    <i className="fa-solid fa-table-cells"></i>
+                    <span>{language === 'en' ? 'No-Scroll Grid' : '⚡ વગર સ્ક્રોલ ગ્રીડ (1-31)'}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setDailyViewMode('list')}
+                    className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer ${
+                      dailyViewMode === 'list'
+                        ? 'bg-teal-600 text-white shadow-xs'
+                        : 'text-gray-600 dark:text-slate-300 hover:text-teal-600'
+                    }`}
+                  >
+                    <i className="fa-solid fa-list"></i>
+                    <span>{language === 'en' ? 'List View' : '📋 યાદી લિસ્ટ'}</span>
+                  </button>
+                </div>
               </div>
 
               {/* Responsive Click Legends instruction */}
-              <div className="rounded-xl bg-teal-50/20 dark:bg-teal-950/20 p-3 border border-teal-100/20 text-[11px] sm:text-xs font-bold leading-relaxed text-gray-700 dark:text-slate-300 select-none">
-                <span className="text-teal-600 dark:text-teal-400 font-semibold">{language === 'en' ? 'Click to toggle:' : 'ક્લિક કરો:'}</span>{' '}
-                <span className="text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-100 dark:bg-emerald-950/40 dark:border-emerald-800">{language === 'en' ? 'P = Present (1.0)' : 'P = હાજર'}</span>{' '}
-                <span className="text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-100 dark:bg-amber-950/40 dark:border-amber-800">{language === 'en' ? 'o|| = Half Day (0.5)' : 'o|| = અડધો દિવસ'}</span>{' '}
-                <span className="text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded border border-rose-100 dark:bg-rose-950/40 dark:border-rose-800">{language === 'en' ? 'x = Absent' : 'x = રજા'}</span>{' '}
-                <span className="text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-100 dark:bg-blue-950/40 dark:border-blue-800">{language === 'en' ? 'P || = Overtime (1.5)' : 'P || = આખો + અડધો (ઓ.ટી.)'}</span>{' '}
+              <div className="rounded-xl bg-teal-50/20 dark:bg-teal-950/20 p-2.5 border border-teal-100/20 text-[11px] sm:text-xs font-bold leading-relaxed text-gray-700 dark:text-slate-300 select-none flex flex-wrap items-center gap-1.5">
+                <span className="text-teal-600 dark:text-teal-400 font-semibold">{language === 'en' ? 'Click to toggle:' : 'ક્લિક કરો:'}</span>
+                <span className="text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-100 dark:bg-emerald-950/40 dark:border-emerald-800">{language === 'en' ? 'P = Present (1.0)' : 'P = હાજર'}</span>
+                <span className="text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-100 dark:bg-amber-950/40 dark:border-amber-800">{language === 'en' ? 'o|| = Half Day (0.5)' : 'o|| = અડધો દિવસ'}</span>
+                <span className="text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded border border-rose-100 dark:bg-rose-950/40 dark:border-rose-800">{language === 'en' ? 'x = Absent' : 'x = રજા'}</span>
+                <span className="text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-100 dark:bg-blue-950/40 dark:border-blue-800">{language === 'en' ? 'P || = Overtime (1.5)' : 'P || = ઓ.ટી.'}</span>
                 <span className="text-purple-600 bg-purple-50 px-1.5 py-0.5 rounded border border-purple-100 dark:bg-purple-950/40 dark:border-purple-800">{language === 'en' ? 'P P = Double (2.0)' : 'P P = ડબલ'}</span>
               </div>
 
-              {/* Main Table List */}
-              <div className="overflow-x-auto rounded-2xl border border-gray-100 dark:border-slate-800">
-                <table className="w-full border-collapse text-left text-sm text-gray-500 dark:text-slate-400">
-                  <thead className="bg-teal-600 text-white text-xs font-black uppercase border-b border-teal-700 select-none">
-                    <tr>
-                      <th scope="col" className="px-1.5 py-3 text-center font-bold w-10">
-                        {language === 'en' ? 'Day' : 'દિ.'}
-                      </th>
-                      <th scope="col" className="px-1.5 py-3 text-center w-[80px] sm:w-28">
-                        {language === 'en' ? 'Status' : 'હાજરી'}
-                      </th>
-                      <th scope="col" className="px-1.5 py-3 text-center w-[70px] sm:w-28">
-                        {language === 'en' ? 'Advance (₹)' : 'ઉપાડ'}
-                      </th>
-                      <th scope="col" className="px-1.5 py-3 text-left">
-                        {language === 'en' ? 'Note' : 'નોંધ'}
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100 bg-white dark:divide-slate-800 dark:bg-slate-900">
-                    {daysArray.map((day) => {
-                      const record = currentAttendance[day] || { status: '', upad: 0, note: '' };
-                      
-                      return (
-                        <tr key={day} className="hover:bg-teal-50/5 transition-colors">
-                          {/* Day Number */}
-                          <td className="px-1.5 py-2 text-center">
-                            <span className="inline-flex h-6 w-6 items-center justify-center rounded-full text-xs font-black font-sans bg-gray-100 text-gray-950 dark:bg-slate-800 dark:text-slate-200">
-                              {day}
-                            </span>
-                          </td>
+              {/* MODE 1: COMPACT NO-SCROLL MONTH GRID (All 31 days fit on one screen) */}
+              {dailyViewMode === 'grid' && (
+                <div className="grid grid-cols-4 sm:grid-cols-7 gap-1.5 sm:gap-2">
+                  {daysArray.map((day) => {
+                    const record = currentAttendance[day] || { status: '', upad: 0, note: '' };
+                    const d = new Date(selectedYear, selectedMonth - 1, day);
+                    const isSunday = d.getDay() === 0;
 
-                          {/* Interactive Toggle button */}
-                          <td className="px-1.5 py-2 text-center select-none">
-                            <button
-                              type="button"
-                              onClick={() => {
-                                const nextStat = getNextStatus(record.status);
-                                onUpdateAttendance(selectedWorker.id, day, 'status', nextStat);
-                              }}
-                              className={`w-full max-w-[70px] sm:max-w-[90px] mx-auto rounded-lg border py-1 text-xs font-black shadow-sm transition-all duration-150 active:scale-95 cursor-pointer text-center ${getStatusStyle(record.status)}`}
+                    return (
+                      <div
+                        key={day}
+                        className={`p-1.5 sm:p-2 rounded-xl border flex flex-col justify-between transition-all ${
+                          isSunday
+                            ? 'bg-rose-50/30 border-rose-100 dark:bg-rose-950/20 dark:border-rose-900/30'
+                            : 'bg-white border-gray-100 dark:bg-slate-900 dark:border-slate-800'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between leading-none mb-1">
+                          <span
+                            className={`inline-flex h-5 w-5 items-center justify-center rounded-full text-[11px] font-black ${
+                              isSunday
+                                ? 'bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300'
+                                : 'bg-gray-100 text-gray-800 dark:bg-slate-800 dark:text-slate-200'
+                            }`}
+                          >
+                            {day}
+                          </span>
+                          {record.note ? (
+                            <span
+                              className="text-[10px] text-teal-600 cursor-help"
+                              title={record.note}
                             >
-                              {getShortStatusLabel(record.status)}
-                            </button>
-                          </td>
+                              💬
+                            </span>
+                          ) : null}
+                        </div>
 
-                          {/* Upad Amount */}
-                          <td className="px-1.5 py-2">
-                            <input
-                              type="number"
-                              min="0"
-                              value={record.upad || ''}
-                              onChange={(e) => {
-                                const val = e.target.value === '' ? 0 : Number(e.target.value);
-                                onUpdateAttendance(selectedWorker.id, day, 'upad', val);
-                              }}
-                              onFocus={(e) => e.target.select()}
-                              placeholder="0"
-                              className="w-full text-center rounded-lg border border-gray-200 bg-gray-50/40 py-1 text-xs font-semibold text-gray-900 outline-none transition-all placeholder:text-gray-300 focus:border-teal-500 focus:bg-white dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:focus:border-teal-500 dark:focus:bg-slate-900"
-                            />
-                          </td>
+                        {/* Interactive Status Cycle Button */}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const nextStat = getNextStatus(record.status);
+                            onUpdateAttendance(selectedWorker.id, day, 'status', nextStat);
+                          }}
+                          className={`w-full py-1 rounded-lg text-xs font-black shadow-xs transition-transform active:scale-95 cursor-pointer text-center ${getStatusStyle(
+                            record.status
+                          )}`}
+                          title={`દિવસ ${day}: સ્ટેટસ બદલવા ક્લિક કરો`}
+                        >
+                          {getShortStatusLabel(record.status)}
+                        </button>
 
-                          {/* Note input */}
-                          <td className="px-1.5 py-2">
-                            <input
-                              type="text"
-                              value={record.note || ''}
-                              onChange={(e) => {
-                                onUpdateAttendance(selectedWorker.id, day, 'note', e.target.value);
-                              }}
-                              placeholder={language === 'en' ? 'Note...' : 'નોંધ...'}
-                              className="w-full text-left rounded-lg border border-gray-200 bg-gray-50/40 px-2 py-1 text-xs text-gray-900 outline-none transition-all placeholder:text-gray-400 focus:border-teal-500 focus:bg-white dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:border-teal-500 dark:focus:bg-slate-900"
-                            />
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
+                        {/* Quick Upad Amount Field */}
+                        <div className="mt-1 flex items-center justify-center bg-gray-50/80 dark:bg-slate-800/80 rounded-md px-1 py-0.5 border border-transparent focus-within:border-teal-500">
+                          <span className="text-[9px] text-gray-400 font-bold mr-0.5">₹</span>
+                          <input
+                            type="number"
+                            min="0"
+                            value={record.upad || ''}
+                            onChange={(e) => {
+                              const val = e.target.value === '' ? 0 : Number(e.target.value);
+                              onUpdateAttendance(selectedWorker.id, day, 'upad', val);
+                            }}
+                            onFocus={(e) => e.target.select()}
+                            placeholder="0"
+                            className="w-full text-center text-[10px] font-bold text-gray-900 dark:text-slate-100 outline-none bg-transparent"
+                            title={`દિવસ ${day} નો ઉપાડ`}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* MODE 2: CLASSIC DETAILED TABLE LIST */}
+              {dailyViewMode === 'list' && (
+                <div className="overflow-x-auto rounded-2xl border border-gray-100 dark:border-slate-800">
+                  <table className="w-full border-collapse text-left text-sm text-gray-500 dark:text-slate-400">
+                    <thead className="bg-teal-600 text-white text-xs font-black uppercase border-b border-teal-700 select-none">
+                      <tr>
+                        <th scope="col" className="px-1.5 py-3 text-center font-bold w-10">
+                          {language === 'en' ? 'Day' : 'દિ.'}
+                        </th>
+                        <th scope="col" className="px-1.5 py-3 text-center w-[80px] sm:w-28">
+                          {language === 'en' ? 'Status' : 'હાજરી'}
+                        </th>
+                        <th scope="col" className="px-1.5 py-3 text-center w-[70px] sm:w-28">
+                          {language === 'en' ? 'Advance (₹)' : 'ઉપાડ'}
+                        </th>
+                        <th scope="col" className="px-1.5 py-3 text-left">
+                          {language === 'en' ? 'Note' : 'નોંધ'}
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100 bg-white dark:divide-slate-800 dark:bg-slate-900">
+                      {daysArray.map((day) => {
+                        const record = currentAttendance[day] || { status: '', upad: 0, note: '' };
+
+                        return (
+                          <tr key={day} className="hover:bg-teal-50/5 transition-colors">
+                            {/* Day Number */}
+                            <td className="px-1.5 py-2 text-center">
+                              <span className="inline-flex h-6 w-6 items-center justify-center rounded-full text-xs font-black font-sans bg-gray-100 text-gray-950 dark:bg-slate-800 dark:text-slate-200">
+                                {day}
+                              </span>
+                            </td>
+
+                            {/* Interactive Toggle button */}
+                            <td className="px-1.5 py-2 text-center select-none">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const nextStat = getNextStatus(record.status);
+                                  onUpdateAttendance(selectedWorker.id, day, 'status', nextStat);
+                                }}
+                                className={`w-full max-w-[70px] sm:max-w-[90px] mx-auto rounded-lg border py-1 text-xs font-black shadow-sm transition-all duration-150 active:scale-95 cursor-pointer text-center ${getStatusStyle(
+                                  record.status
+                                )}`}
+                              >
+                                {getShortStatusLabel(record.status)}
+                              </button>
+                            </td>
+
+                            {/* Upad Amount */}
+                            <td className="px-1.5 py-2">
+                              <input
+                                type="number"
+                                min="0"
+                                value={record.upad || ''}
+                                onChange={(e) => {
+                                  const val = e.target.value === '' ? 0 : Number(e.target.value);
+                                  onUpdateAttendance(selectedWorker.id, day, 'upad', val);
+                                }}
+                                onFocus={(e) => e.target.select()}
+                                placeholder="0"
+                                className="w-full text-center rounded-lg border border-gray-200 bg-gray-50/40 py-1 text-xs font-semibold text-gray-900 outline-none transition-all placeholder:text-gray-300 focus:border-teal-500 focus:bg-white dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:focus:border-teal-500 dark:focus:bg-slate-900"
+                              />
+                            </td>
+
+                            {/* Note input */}
+                            <td className="px-1.5 py-2">
+                              <input
+                                type="text"
+                                value={record.note || ''}
+                                onChange={(e) => {
+                                  onUpdateAttendance(selectedWorker.id, day, 'note', e.target.value);
+                                }}
+                                placeholder={language === 'en' ? 'Note...' : 'નોંધ...'}
+                                className="w-full text-left rounded-lg border border-gray-200 bg-gray-50/40 px-2 py-1 text-xs text-gray-900 outline-none transition-all placeholder:text-gray-400 focus:border-teal-500 focus:bg-white dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:border-teal-500 dark:focus:bg-slate-900"
+                              />
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
           )}
 
@@ -496,19 +607,6 @@ export default function AttendanceView({
                 : 'જે કારીગરનું દૈનિક હાજરીપત્રક અથવા ઉપાડ નોંધવો હોય, તેમના કાર્ડ પર રહેલું "હાજરી કાર્ડ જુઓ" બટન દબાવો.'}
             </p>
           </div>
-
-          {onOpenQuickEntry && (
-            <button
-              type="button"
-              id="btn-quick-past-entry-attendance"
-              onClick={onOpenQuickEntry}
-              className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white px-3.5 py-2.5 text-xs sm:text-sm font-bold shadow-sm transition-all cursor-pointer whitespace-nowrap active:scale-95 shrink-0 self-start sm:self-auto"
-              title={language === 'en' ? 'Quick Past Month Data Entry' : 'જૂના મહિનાનો હિસાબ એન્ટર કરો'}
-            >
-              <i className="fa-solid fa-bolt-lightning text-amber-300"></i>
-              <span>{language === 'en' ? 'Past Data Entry' : 'જૂના ડેટા / જૂનો હિસાબ'}</span>
-            </button>
-          )}
         </div>
 
         {/* Local Fast SEARCH box */}

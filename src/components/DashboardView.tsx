@@ -77,16 +77,6 @@ export default function DashboardView({
             >
               {t('addNewWorkerBtn')}
             </button>
-            {onOpenQuickEntry && (
-              <button
-                type="button"
-                onClick={onOpenQuickEntry}
-                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black shadow-sm transition-all cursor-pointer flex items-center gap-1.5"
-              >
-                <i className="fa-solid fa-bolt-lightning text-amber-300 text-xs"></i>
-                <span>{language === 'en' ? 'Enter Past Data' : 'જૂનો હિસાબ એન્ટર કરો'}</span>
-              </button>
-            )}
           </div>
         </div>
       )}
@@ -214,7 +204,7 @@ export default function DashboardView({
           {t('quickActionsTitle')}
         </h3>
 
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
           <button
             onClick={() => onNavigateToTab('workers')}
             className="flex flex-col items-center justify-center p-4 sm:p-5 rounded-2xl border border-gray-100 hover:border-teal-200 bg-gray-50 hover:bg-teal-50/20 text-center transition-all duration-200 group dark:border-slate-800 dark:bg-slate-950 dark:hover:border-teal-500 dark:hover:bg-slate-800 cursor-pointer"
@@ -244,24 +234,6 @@ export default function DashboardView({
               {t('actionAttendanceDesc')}
             </p>
           </button>
-
-          {/* Quick Past Month Entry Card */}
-          {onOpenQuickEntry && (
-            <button
-              onClick={onOpenQuickEntry}
-              className="flex flex-col items-center justify-center p-4 sm:p-5 rounded-2xl border-2 border-emerald-500/40 hover:border-emerald-500 bg-emerald-50/30 hover:bg-emerald-50/60 text-center transition-all duration-200 group dark:border-emerald-900/50 dark:bg-emerald-950/20 dark:hover:border-emerald-500 dark:hover:bg-slate-800 cursor-pointer"
-            >
-              <div className="flex h-11 w-11 sm:h-12 sm:w-12 items-center justify-center rounded-full bg-emerald-100 text-emerald-600 mb-2.5 group-hover:scale-110 duration-200 transition-transform dark:bg-emerald-900/50 dark:text-emerald-300">
-                <i className="fa-solid fa-bolt-lightning text-base sm:text-lg"></i>
-              </div>
-              <h4 className="font-bold text-gray-900 text-xs sm:text-sm dark:text-white flex items-center gap-1">
-                <span>{t('quickEntryBtn')}</span>
-              </h4>
-              <p className="text-[11px] text-gray-500 mt-0.5 dark:text-slate-400 hidden xs:block">
-                {t('quickEntrySubtitle')}
-              </p>
-            </button>
-          )}
 
           <button
             onClick={() => onNavigateToTab('reports')}

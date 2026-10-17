@@ -74,9 +74,52 @@ export function getWorkerWageForMonth(
 }
 
 /**
+ * Checks if a worker was created exclusively for a specific past month.
+ */
+export function isWorkerScopedToSpecificMonth(worker: Worker): boolean {
+  if (!worker) return false;
+  return Boolean(
+    worker.specificMonthOnly ||
+    (Array.isArray(worker.activeMonthsOnly) && worker.activeMonthsOnly.length > 0)
+  );
+}
+
+/**
+ * Checks if a month-scoped worker is assigned to a specific year and month.
+ */
+export function isWorkerAssignedToMonth(worker: Worker, month: number, year: number): boolean {
+  if (!worker) return false;
+  if (!isWorkerScopedToSpecificMonth(worker)) {
+    return true; // Regular worker is assigned to all months unless deactivated
+  }
+  const keys = [
+    `${year}-${month}`,
+    `${year}_${month}`,
+    `${year}-${String(month).padStart(2, '0')}`,
+    `${year}_${String(month).padStart(2, '0')}`,
+  ];
+  if (worker.specificMonthOnly && keys.includes(worker.specificMonthOnly)) {
+    return true;
+  }
+  if (Array.isArray(worker.activeMonthsOnly) && worker.activeMonthsOnly.some((m) => keys.includes(m))) {
+    return true;
+  }
+  return false;
+}
+
+/**
  * Checks if a worker is active for a given year and month.
  */
 export function isWorkerActiveInMonth(worker: Worker, month: number, year: number): boolean {
+  if (!worker) return false;
+
+  // If worker was created specifically for a past month, they are ONLY active in that specific month!
+  if (isWorkerScopedToSpecificMonth(worker)) {
+    if (!isWorkerAssignedToMonth(worker, month, year)) {
+      return false;
+    }
+  }
+
   if (!worker.inactiveMonths || worker.inactiveMonths.length === 0) return true;
   const keyHyphen = `${year}-${month}`;
   const keyUnderscore = `${year}_${month}`;
@@ -151,13 +194,17 @@ export function calculateGlobalSummary(
 ) {
   const daysCount = getDaysInMonth(year, month);
   const activeWorkers = workers.filter((w) => {
+    if (w.isDeleted) {
+      return false;
+    }
+    // Workers scoped to another month must never be included in this month
+    if (isWorkerScopedToSpecificMonth(w) && !isWorkerAssignedToMonth(w, month, year)) {
+      return false;
+    }
     const key = `${w.id}_${year}_${month}`;
     const monthlyData = attendanceDB[key];
     const hasData = monthlyData && Object.values(monthlyData).some((r) => Boolean(r.status) || (r.upad && r.upad > 0));
     
-    if (w.isDeleted) {
-      return false;
-    }
     return isWorkerActiveInMonth(w, month, year) || hasData;
   });
   let totalWorkers = activeWorkers.length;

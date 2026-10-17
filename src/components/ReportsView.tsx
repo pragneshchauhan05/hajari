@@ -1,6 +1,6 @@
 import React from 'react';
 import { Worker, MonthlyWorkerAttendance } from '../types';
-import { calculateGlobalSummary, calculateWorkerTotals, getDaysInMonth, isWorkerActiveInMonth, getWorkerWageForMonth } from '../utils/attendanceUtils';
+import { calculateGlobalSummary, calculateWorkerTotals, getDaysInMonth, isWorkerActiveInMonth, getWorkerWageForMonth, isWorkerScopedToSpecificMonth, isWorkerAssignedToMonth } from '../utils/attendanceUtils';
 import { useLanguage } from '../context/LanguageContext';
 import { formatIndianCurrency } from '../utils/translations';
 
@@ -28,6 +28,9 @@ export default function ReportsView({
 
   // Include workers who are active in the selected month OR have recorded attendance/upad for that month
   const reportWorkers = workers.filter((w) => {
+    if (isWorkerScopedToSpecificMonth(w) && !isWorkerAssignedToMonth(w, selectedMonth, selectedYear)) {
+      return false;
+    }
     const key = `${w.id}_${selectedYear}_${selectedMonth}`;
     const monthlyData = attendanceDB[key];
     const hasData = monthlyData && Object.values(monthlyData).some((r) => Boolean(r.status) || (r.upad && r.upad > 0));

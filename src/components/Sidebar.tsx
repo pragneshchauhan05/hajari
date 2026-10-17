@@ -1,5 +1,5 @@
 import React from 'react';
-import { ActiveTab } from '../types';
+import { ActiveTab, isUserAdmin } from '../types';
 import { useLanguage } from '../context/LanguageContext';
 import { User } from 'firebase/auth';
 
@@ -24,16 +24,17 @@ export default function Sidebar({
   isLoggingIn,
   onRestore,
   isRestoring,
-  onOpenQuickEntry,
+  onOpenQuickEntry: _onOpenQuickEntry,
 }: SidebarProps) {
   const { language, t } = useLanguage();
+  const isAdmin = isUserAdmin(user);
 
   const menuItems = [
     { id: 'dashboard' as ActiveTab, label: t('dashboard'), icon: 'fa-house', color: 'from-blue-500 to-indigo-600' },
     { id: 'workers' as ActiveTab, label: t('workers'), icon: 'fa-users-gear', color: 'from-amber-400 to-orange-500' },
     { id: 'attendance' as ActiveTab, label: t('attendance'), icon: 'fa-calendar-check', color: 'from-teal-400 to-emerald-600' },
     { id: 'reports' as ActiveTab, label: t('reports'), icon: 'fa-chart-pie', color: 'from-rose-500 to-pink-600' },
-    { id: 'admin' as ActiveTab, label: t('adminPanel'), icon: 'fa-shield-halved', color: 'from-purple-500 to-indigo-600' },
+    ...(isAdmin ? [{ id: 'admin' as ActiveTab, label: t('adminPanel'), icon: 'fa-shield-halved', color: 'from-purple-500 to-indigo-600' }] : []),
   ];
 
   return (
@@ -87,26 +88,6 @@ export default function Sidebar({
             );
           })}
         </nav>
-
-        {/* Quick Past Month Direct Entry Button in Sidebar */}
-        {onOpenQuickEntry && (
-          <div className="mt-3 pt-3 border-t border-gray-100 dark:border-slate-800">
-            <button
-              type="button"
-              onClick={onOpenQuickEntry}
-              className="flex w-full items-center justify-start gap-2.5 rounded-xl bg-gradient-to-r from-emerald-500/10 to-teal-500/10 hover:from-emerald-500/20 hover:to-teal-500/20 border border-emerald-500/30 px-3 py-2 text-xs font-bold text-emerald-800 dark:text-emerald-300 transition-all cursor-pointer active:scale-98 shadow-xs"
-              title={language === 'en' ? 'Quick Past Month Data Entry' : 'જૂના મહિનાનો હિસાબ એન્ટર કરો'}
-            >
-              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-emerald-500 text-white shadow-xs">
-                <i className="fa-solid fa-bolt-lightning text-amber-300 text-xs"></i>
-              </div>
-              <div className="text-left">
-                <p className="font-extrabold leading-tight">{language === 'en' ? 'Past Data Entry' : 'જૂના ડેટા એન્ટર કરો'}</p>
-                <p className="text-[10px] text-emerald-600/90 dark:text-emerald-400 font-medium">{language === 'en' ? 'Past Month Records' : 'પાછલા મહિનાનો હિસાબ'}</p>
-              </div>
-            </button>
-          </div>
-        )}
       </div>
 
       {/* Account Info / Login in Sidebar */}
@@ -161,22 +142,6 @@ export default function Sidebar({
             </span>
           </button>
         ) : null}
-        {onRestore && (
-          <button
-            type="button"
-            onClick={onRestore}
-            disabled={isRestoring}
-            className="mt-2.5 w-full flex items-center justify-center gap-2 py-2 px-3 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-xs font-black shadow-xs transition-all cursor-pointer active:scale-95 disabled:opacity-50"
-            title={language === 'en' ? 'Restore Data from Cloud' : 'ક્લાઉડ માંથી ડેટા રીસ્ટોર કરો'}
-          >
-            <i className={`fa-solid ${isRestoring ? 'fa-spinner animate-spin' : 'fa-cloud-arrow-down'}`}></i>
-            <span>
-              {isRestoring
-                ? (language === 'en' ? 'Restoring...' : 'રીસ્ટોર થઈ રહ્યું છે...')
-                : (language === 'en' ? 'Restore from Cloud' : 'ક્લાઉડ માંથી ડેટા રીસ્ટોર કરો')}
-            </span>
-          </button>
-        )}
       </div>
     </aside>
   );
